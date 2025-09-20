@@ -1,0 +1,41 @@
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('register/', views.register_view, name='register'),
+    path('login/', views.login_view, name='login'),
+    path('api/auth/logout/', views.logout_view, name='logout'),
+    path('candidate/register/', views.candidate_registration_view, name='candidate-register'),
+    path('api/moderators/', views.moderator_management, name='moderator-management'),
+    path('api/candidates/', views.get_candidates, name='get-candidates'),
+    path('api/auth/check/', views.check_auth_view, name='check-auth'),
+    path('api/vote/', views.cast_vote, name='cast-vote'),
+    path('api/unvote/', views.unvote, name='unvote'),
+    path('api/user/votes/', views.get_user_votes, name='get-user-votes'),
+    path('api/candidates/applications/', views.get_candidate_applications, name='candidate-applications'),
+    path('api/candidates/<int:candidate_id>/status/', views.update_candidate_status, name='update-candidate-status'),
+    path('api/candidates/<int:candidate_id>/', views.get_candidate_detail, name='candidate-detail'),
+    path('api/results/', views.get_election_results, name='election-results'),
+    path('api/mark-voted/', views.mark_user_voted, name='mark-user-voted'),
+    path('api/election-settings/', views.election_settings_view, name='election-settings'),
+   path('api/start-election/', views.start_election, name='start-election'),
+    path('api/cancel-election/', views.cancel_election, name='cancel-election'),
+    path('api/reset-votes/', views.reset_votes, name='reset-votes'),
+    # Audit log endpoints
+    path('api/candidates/delete-all/', views.delete_all_candidates, name='delete_all_candidates'),
+    path('api/check-election-status/', views.check_election_status, name='check_election_status'),
+    path('api/audit-logs/', views.get_audit_logs, name='get-audit-logs'),
+    path('api/audit-logs/unread-count/', views.get_unread_audit_logs_count, name='unread-audit-logs-count'),
+    path('api/audit-logs/mark-read/', views.mark_all_audit_logs_read, name='mark-audit-logs-read'),
+    path('api/audit-logs/clear/', views.clear_audit_logs, name='clear-audit-logs'),
+    path('api/bulk-vote/', views.bulk_vote, name='bulk-vote'),
+    path('api/my-candidate-application/', views.get_my_candidate_application, name='my-candidate-application'),
+    path('api/candidate-application/<int:candidate_id>/', views.delete_candidate_application, name='delete-candidate-application'),
+   # path('api/check-user-application/', views.check_user_application, name='check-user-application'),
+   path('api/candidate-application/<int:candidate_id>/update/', views.update_candidate_application, name='update-candidate-application'),
+   path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
+   path('api/cancel-election/', views.cancel_election, name='cancel_election'),
+    path('api/check-election-end/', views.check_election_end, name='check_election_end'),
+    path('api/send-election-start-emails/', views.send_election_start_emails, name='send_election_start_emails'),
+]
