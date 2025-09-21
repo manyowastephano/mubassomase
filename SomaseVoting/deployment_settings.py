@@ -2,11 +2,37 @@ import os
 import dj_database_url
 from .settings import *
 from .settings import BASE_DIR
-ALLOWED_HOSTS=[os.environ.get['RENDER_EXTERNAL_HOSTNAME']]
-CSRF_TRUSTED_ORIGINS=['https://'+os.environ.get['RENDER_EXTERNAL_HOSTNAME']]
-DEBUG=False
-SECRET_KEY=os.environ.get['SECRET_KEY']
 
+# Get the external hostname from environment
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
+
+# Set allowed hosts and CSRF trusted origins
+ALLOWED_HOSTS = []
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+if os.environ.get('ALLOWED_HOSTS'):
+    ALLOWED_HOSTS.extend(os.environ.get('ALLOWED_HOSTS').split(','))
+
+CSRF_TRUSTED_ORIGINS = []
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+if os.environ.get('CSRF_TRUSTED_ORIGINS'):
+    CSRF_TRUSTED_ORIGINS.extend(os.environ.get('CSRF_TRUSTED_ORIGINS').split(','))
+
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+SECRET_KEY = os.environ['SECRET_KEY']
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+if RENDER_EXTERNAL_HOSTNAME:
+    CORS_ALLOWED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+if os.environ.get('CORS_ALLOWED_ORIGINS'):
+    CORS_ALLOWED_ORIGINS.extend(os.environ.get('CORS_ALLOWED_ORIGINS').split(','))
+
+CORS_ALLOW_CREDENTIALS = True
 
 MIDDLEWARE = [
     'vottingapp.middleware.CorsMiddleware',
@@ -20,23 +46,48 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://127.0.0.1:3000",
-# ]
 
-STORAGES={
-    "default":{
-        "BACKEND":"django.core.files.storage.FileSystemStorage",
-},
-'staticfiles':{
-    "BACKEND":"whitenoise.storage.CompressedStaticFileStorage",
-},
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    'staticfiles': {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
 }
 
-DATABASES={
-    "default":dj_database_url.config(
+# Database configuration for production
+DATABASES = {
+    "default": dj_database_url.config(
         default=os.environ['DATABASE_URL'],
-        conn_max_age=600
+        conn_max_age=600,
+        ssl_require=True
     )
 }
+
+# Cloudinary configuration for production
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+}
+
+# Add this to determine the frontend URL dynamically
+FRONTEND_URL = f'https://{RENDER_EXTERNAL_HOSTNAME}' if RENDER_EXTERNAL_HOSTNAME else 'http://localhost:3000'
+
+# Security settings for production
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Email configuration for production
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL')

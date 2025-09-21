@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Check if election should end based on scheduled time'
+    help = 'Check if election should start or end based on scheduled time'
     
     def handle(self, *args, **options):
         try:
@@ -19,21 +19,40 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING('No election settings found'))
                 return
             
-            # Only check if election is active
-            if not election_settings.is_active:
-                self.stdout.write(self.style.WARNING('Election is not active'))
-                return
-            
             # Get current time
             now = timezone.now()
             
-            # Convert end_date to timezone-aware datetime if it's naive
+            # Convert dates to timezone-aware datetime if they're naive
+            start_date = election_settings.start_date
+            if start_date and timezone.is_naive(start_date):
+                start_date = timezone.make_aware(start_date)
+                
             end_date = election_settings.end_date
-            if timezone.is_naive(end_date):
+            if end_date and timezone.is_naive(end_date):
                 end_date = timezone.make_aware(end_date)
             
-            # Check if end time has passed
-            if end_date <= now:
+            # Check if election should start
+            if start_date and start_date <= now and not election_settings.is_active:
+                # Start the election
+                election_settings.is_active = True
+                election_settings.save()
+                
+                # Send election start emails
+                self.send_election_started_emails(election_settings)
+                
+                # Create audit log
+                AuditLog.objects.create(
+                    user=None,  # System action
+                    action='election_started',
+                    details="Election started automatically"
+                )
+                
+                self.stdout.write(
+                    self.style.SUCCESS('Election started automatically and emails sent')
+                )
+            
+            # Check if election should end
+            if election_settings.is_active and end_date and end_date <= now:
                 # End the election
                 election_settings.is_active = False
                 election_settings.save()
@@ -51,7 +70,9 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS('Election ended automatically and emails sent')
                 )
-            else:
+            
+            # If election is active but end time hasn't passed
+            elif election_settings.is_active and end_date and end_date > now:
                 # Calculate time until election ends
                 time_until_end = end_date - now
                 days = time_until_end.days
@@ -61,11 +82,60 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS(f'Election active. Time remaining: {days}d {hours}h {minutes}m')
                 )
+            else:
+                self.stdout.write(
+                    self.style.WARNING('Election is not active and no start time scheduled')
+                )
                 
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'Error checking election end: {str(e)}')
+                self.style.ERROR(f'Error checking election status: {str(e)}')
             )
+    
+    def send_election_started_emails(self, election_settings):
+        """Send election started notification emails to all users"""
+        # Get all user emails
+        user_emails = CustomUser.objects.filter(is_active=True).values_list('email', flat=True)
+        user_emails = [email for email in user_emails if email]
+        
+        if not user_emails:
+            logger.warning("No users found to send election start emails")
+            return
+        
+        # Get additional emails from election settings
+        additional_emails = election_settings.get_additional_emails_list()
+        
+        # Combine all emails
+        all_emails = list(user_emails) + additional_emails
+        
+        # Email content
+        subject = 'MUBAS SOMASE Elections Has Started'
+        
+        # Use the frontend URL from settings or default to localhost
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        
+        message = f"""
+Hello everyone,
+
+The MUBAS SOMASE ELECTIONS has now started.
+
+Please log in to the system to cast your vote: {frontend_url}/login
+
+The election will end on {election_settings.end_date.strftime("%Y-%m-%d at %H:%M") if election_settings.end_date else "a specified date"}.
+
+Thank you for participating in the democratic process.
+
+Best regards,
+MUBAS SOMASE Election Committee
+"""
+        
+        # Prepare emails for mass sending
+        emails = [(subject, message, settings.DEFAULT_FROM_EMAIL, [email]) for email in all_emails]
+        
+        # Send emails
+        send_mass_mail(emails, fail_silently=False)
+        
+        logger.info(f"Sent election start emails to {len(all_emails)} recipients")
     
     def send_election_ended_emails(self, election_settings):
         """Send election ended notification emails to all users"""
@@ -84,7 +154,7 @@ class Command(BaseCommand):
         all_emails = list(user_emails) + additional_emails
         
         # Email content
-        subject = f'MUBAS SOMASE Elections Has Ended'
+        subject = 'MUBAS SOMASE Elections Has Ended'
         
         message = f"""
 Hello everyone,

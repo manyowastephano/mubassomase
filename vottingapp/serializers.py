@@ -137,7 +137,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
         return obj.user.email if obj.user else 'System'
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
-    profile_photo = serializers.ImageField(required=False, allow_null=True)
+    profile_photo = serializers.CharField(required=False, allow_null=True)
     
     class Meta:
         model = CustomUser
@@ -226,7 +226,7 @@ class UserLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Must include 'email' and 'password'.")
 
 class CandidateRegistrationSerializer(serializers.ModelSerializer):
-    profile_photo = serializers.ImageField(required=True)
+    profile_photo = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)  # Add email field
     
     class Meta:
@@ -260,14 +260,14 @@ class CandidateRegistrationSerializer(serializers.ModelSerializer):
 
 class CandidateSerializer(serializers.ModelSerializer):
     position_display = serializers.CharField(source='get_position_display', read_only=True)
-    profile_photo = serializers.SerializerMethodField()
+    profile_photo_url = serializers.SerializerMethodField()
     applied_on = serializers.DateTimeField(source='created_at', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)  # Add this line
     
     class Meta:
         model = Candidate
         fields = ('id', 'email', 'full_name', 'position', 'position_display', 'phone', 
-                 'slogan', 'manifesto', 'profile_photo', 'status', 'applied_on', 
+                 'slogan', 'manifesto', 'profile_photo_url', 'status', 'applied_on', 
                  'votes', 'user', 'created_at')
         read_only_fields = ('user', 'votes')
     
@@ -281,6 +281,11 @@ class CandidateSerializer(serializers.ModelSerializer):
     
     def get_created_at_formatted(self, obj):
         return obj.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    def get_profile_photo_url(self, obj):
+        # CloudinaryField automatically provides a URL
+        if obj.profile_photo:
+            return obj.profile_photo.url
+        return None
 class VoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vote

@@ -30,7 +30,23 @@ from django.template.loader import render_to_string
 from django.contrib.sites.shortcuts import get_current_site
 from .token_generator import account_activation_token
 from django.core.mail import send_mail, EmailMultiAlternatives
+from django.conf import settings
 
+from django.http import JsonResponse
+
+def keep_alive(request):
+    return JsonResponse({"status": "ok", "message": "Instance is awake"})
+
+def get_frontend_url():
+    """
+    Returns the appropriate frontend URL based on environment
+    """
+    # Check if we're in production (using the deployment settings)
+    if hasattr(settings, 'FRONTEND_URL'):
+        return settings.FRONTEND_URL
+    
+    # Default to localhost for development
+    return 'http://localhost:3000'
 # Helper function to create audit logs
 def create_audit_log(user, action, details):
     audit_log = AuditLog.objects.create(
@@ -81,7 +97,7 @@ def get_audit_logs(request):
             'page': page,
             'page_size': page_size
         })
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -94,7 +110,7 @@ def get_audit_logs(request):
             {'error': 'An internal server error occurred while fetching audit logs'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -116,7 +132,7 @@ def get_unread_audit_logs_count(request):
         response = Response({
             'unread_count': unread_count
         })
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -129,7 +145,7 @@ def get_unread_audit_logs_count(request):
             {'error': 'An internal server error occurred while fetching unread audit logs count'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -142,7 +158,7 @@ def mark_all_audit_logs_read(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -165,7 +181,7 @@ def mark_all_audit_logs_read(request):
         response = Response({
             'message': 'All audit logs marked as read'
         })
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -178,7 +194,7 @@ def mark_all_audit_logs_read(request):
             {'error': 'An internal server error occurred while marking audit logs as read'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -193,7 +209,7 @@ def moderator_management(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
@@ -206,7 +222,7 @@ def moderator_management(request):
                 {'error': 'You do not have permission to access moderator management'},
                 status=status.HTTP_403_FORBIDDEN
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
             
@@ -233,7 +249,7 @@ def moderator_management(request):
                     {'error': 'Only president and vice president can manage moderators'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-                response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
                 response['Access-Control-Allow-Credentials'] = 'true'
                 return response
                 
@@ -245,7 +261,7 @@ def moderator_management(request):
                     {'error': 'Action and email are required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-                response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
                 response['Access-Control-Allow-Credentials'] = 'true'
                 return response
                 
@@ -257,7 +273,7 @@ def moderator_management(request):
                     {'error': 'User with this email does not exist'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-                response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
                 response['Access-Control-Allow-Credentials'] = 'true'
                 return response
                 
@@ -367,7 +383,7 @@ def moderator_management(request):
                         {'error': 'Only president can transfer presidency'},
                         status=status.HTTP_403_FORBIDDEN
                     )
-                    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                    response['Access-Control-Allow-Origin'] = get_frontend_url()
                     response['Access-Control-Allow-Credentials'] = 'true'
                     return response
                     
@@ -419,7 +435,7 @@ def moderator_management(request):
                 )
         
         # Set CORS headers
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -432,7 +448,7 @@ def moderator_management(request):
             {'error': 'An internal server error occurred'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -462,7 +478,7 @@ def login_view(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -494,7 +510,7 @@ def login_view(request):
                 }, status=status.HTTP_200_OK)
                 
                 # Set CORS headers
-                response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
                 response['Access-Control-Allow-Credentials'] = 'true'
                 return response
             else:
@@ -506,7 +522,7 @@ def login_view(request):
                 }, status=status.HTTP_401_UNAUTHORIZED)
                 
                 # Set CORS headers
-                response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
                 response['Access-Control-Allow-Credentials'] = 'true'
                 return response
                 
@@ -521,7 +537,7 @@ def login_view(request):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             # Set CORS headers
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
 
@@ -532,7 +548,7 @@ def logout_view(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -544,7 +560,7 @@ def logout_view(request):
     }, status=status.HTTP_200_OK)
     
     # Set CORS headers
-    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
 @api_view(['POST'])
@@ -563,7 +579,7 @@ def candidate_registration_view(request):
                 'error': 'This email is not registered in our system. Please register first before applying.'
             }, status=status.HTTP_400_BAD_REQUEST)
             
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -573,7 +589,7 @@ def candidate_registration_view(request):
                 'error': 'This email has already been used to submit a candidate application.'
             }, status=status.HTTP_400_BAD_REQUEST)
             
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -584,7 +600,7 @@ def candidate_registration_view(request):
                 'error': f'You have already applied for the {dict(Candidate.POSITION_CHOICES).get(position)} position.'
             }, status=status.HTTP_400_BAD_REQUEST)
             
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -610,7 +626,7 @@ def candidate_registration_view(request):
             }, status=status.HTTP_201_CREATED)
             
             # Set CORS headers
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         else:
@@ -620,7 +636,7 @@ def candidate_registration_view(request):
             )
             
             # Set CORS headers
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
             
@@ -635,7 +651,7 @@ def candidate_registration_view(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         # Set CORS headers
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 @api_view(['GET'])
@@ -646,7 +662,7 @@ def get_candidates(request):
     serializer = CandidateSerializer(candidates, many=True, context={'request': request})
     
     response = Response(serializer.data)
-    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
 
@@ -687,7 +703,7 @@ def election_settings_view(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'GET, PUT, OPTIONS'
@@ -735,7 +751,7 @@ def election_settings_view(request):
                                 {'error': 'Invalid email format'},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
-                            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                            response['Access-Control-Allow-Origin'] = get_frontend_url()
                             response['Access-Control-Allow-Credentials'] = 'true'
                             return response
                         
@@ -746,7 +762,7 @@ def election_settings_view(request):
                                 {'error': 'Email already exists in the list'},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
-                            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                            response['Access-Control-Allow-Origin'] = get_frontend_url()
                             response['Access-Control-Allow-Credentials'] = 'true'
                             return response
                         
@@ -789,7 +805,7 @@ def election_settings_view(request):
                     })
                 
                 # Set CORS headers for email operations
-                response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
                 response['Access-Control-Allow-Credentials'] = 'true'
                 return response
                 
@@ -818,7 +834,7 @@ def election_settings_view(request):
                     response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         # Set CORS headers
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -831,7 +847,7 @@ def election_settings_view(request):
             {'error': 'An internal server error occurred while handling election settings'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -844,7 +860,7 @@ def cast_vote(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -855,7 +871,7 @@ def cast_vote(request):
         
         if not candidate_id:
             response = Response({'error': 'Candidate ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -867,7 +883,7 @@ def cast_vote(request):
                 {'error': 'Election settings not configured'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -882,7 +898,7 @@ def cast_vote(request):
                 'error': f'You are not eligible to vote. Only students admitted between {election_settings.start_year} and {election_settings.end_year} are allowed to vote.'
             }, status=status.HTTP_403_FORBIDDEN)
             
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -895,7 +911,7 @@ def cast_vote(request):
                 {'error': f'You have already voted for the {candidate.get_position_display()} position.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -935,13 +951,13 @@ def cast_vote(request):
             'has_completed_voting': request.user.has_voted
         }, status=status.HTTP_201_CREATED)
         
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
     except Candidate.DoesNotExist:
         response = Response({'error': 'Candidate not found or not approved'}, status=status.HTTP_404_NOT_FOUND)
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
     except Exception as e:
@@ -953,7 +969,7 @@ def cast_vote(request):
             {'error': 'An internal server error occurred while casting your vote'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -972,7 +988,7 @@ def get_user_votes(request):
     ]
     
     response = Response(data)
-    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
 
@@ -983,7 +999,7 @@ def unvote(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -994,7 +1010,7 @@ def unvote(request):
         
         if not position:
             response = Response({'error': 'Position is required'}, status=status.HTTP_400_BAD_REQUEST)
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -1003,7 +1019,7 @@ def unvote(request):
             vote = Vote.objects.get(user=request.user, position=position)
         except Vote.DoesNotExist:
             response = Response({'error': 'No vote found for this position'}, status=status.HTTP_404_NOT_FOUND)
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -1028,7 +1044,7 @@ def unvote(request):
             'position': position
         }, status=status.HTTP_200_OK)
         
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1041,7 +1057,7 @@ def unvote(request):
             {'error': 'An internal server error occurred while removing your vote'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -1066,7 +1082,7 @@ def get_candidate_applications(request):
         serializer = CandidateSerializer(candidates, many=True, context={'request': request})
         
         response = Response(serializer.data)
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1079,7 +1095,7 @@ def get_candidate_applications(request):
             {'error': 'An internal server error occurred while fetching candidate applications'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -1093,7 +1109,7 @@ def update_candidate_status(request, candidate_id):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'PATCH, OPTIONS'
@@ -1111,7 +1127,7 @@ def update_candidate_status(request, candidate_id):
                 {'error': 'Invalid status. Must be "approved", "rejected", or "pending"'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -1134,7 +1150,7 @@ def update_candidate_status(request, candidate_id):
             'status': candidate.status
         }, status=status.HTTP_200_OK)
         
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1143,7 +1159,7 @@ def update_candidate_status(request, candidate_id):
             {'error': 'Candidate not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1156,7 +1172,7 @@ def update_candidate_status(request, candidate_id):
             {'error': 'An internal server error occurred while updating candidate status'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 @api_view(['GET'])
@@ -1174,14 +1190,14 @@ def get_candidate_detail(request, candidate_id):
                 {'error': 'You do not have permission to view this application'},
                 status=status.HTTP_403_FORBIDDEN
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
             
         serializer = CandidateSerializer(candidate, context={'request': request})
         
         response = Response(serializer.data)
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1190,7 +1206,7 @@ def get_candidate_detail(request, candidate_id):
             {'error': 'Candidate not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1203,7 +1219,7 @@ def get_candidate_detail(request, candidate_id):
             {'error': 'An internal server error occurred while fetching candidate details'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -1240,7 +1256,7 @@ def get_election_results(request):
                 'endYear': end_year
             }
         })
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1253,7 +1269,7 @@ def get_election_results(request):
             {'error': 'An internal server error occurred while fetching results'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -1273,7 +1289,7 @@ def mark_user_voted(request):
             'message': 'User marked as voted',
             'user_id': user.id
         })
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1286,7 +1302,7 @@ def mark_user_voted(request):
             {'error': 'An internal server error occurred while marking user as voted'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
@@ -1301,7 +1317,7 @@ def get_my_candidate_application(request):
     except Candidate.DoesNotExist:
         response = Response({'message': 'No application found'}, status=status.HTTP_404_NOT_FOUND)
     
-    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
 
@@ -1315,7 +1331,7 @@ def reset_votes(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -1328,7 +1344,7 @@ def reset_votes(request):
                 {'error': 'Only president and vice president can reset votes'},
                 status=status.HTTP_403_FORBIDDEN
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
             
@@ -1352,7 +1368,7 @@ def reset_votes(request):
             'message': 'All votes and candidate vote counts have been reset successfully'
         }, status=status.HTTP_200_OK)
         
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1365,7 +1381,7 @@ def reset_votes(request):
             {'error': 'An internal server error occurred while resetting votes'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 @api_view(['POST'])
@@ -1378,7 +1394,7 @@ def clear_audit_logs(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -1400,7 +1416,7 @@ def clear_audit_logs(request):
         response = Response({
             'message': 'Your audit logs have been cleared successfully'
         })
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1413,7 +1429,7 @@ def clear_audit_logs(request):
             {'error': 'An internal server error occurred while clearing audit logs'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 @api_view(['POST'])
@@ -1426,7 +1442,7 @@ def bulk_vote(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -1443,7 +1459,7 @@ def bulk_vote(request):
                 {'error': 'Election settings not configured'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -1458,7 +1474,7 @@ def bulk_vote(request):
                 'error': f'You are not eligible to vote. Only students admitted between {election_settings.start_year} and {election_settings.end_year} are allowed to vote.'
             }, status=status.HTTP_403_FORBIDDEN)
             
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -1468,7 +1484,7 @@ def bulk_vote(request):
                 {'error': 'Election is not active'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -1519,7 +1535,7 @@ def bulk_vote(request):
             'votes_count': len(votes_data)
         }, status=status.HTTP_201_CREATED)
         
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -1532,7 +1548,7 @@ def bulk_vote(request):
             {'error': 'An internal server error occurred while submitting your votes'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 # Add this endpoint to update an application
@@ -1543,7 +1559,7 @@ def update_candidate_application(request, candidate_id):
     """Update a candidate application"""
     if request.method == 'OPTIONS':
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'PUT, OPTIONS'
@@ -1559,7 +1575,7 @@ def update_candidate_application(request, candidate_id):
                 {'error': 'Cannot edit application that is not in pending or rjected status'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
             
@@ -1605,7 +1621,7 @@ def update_candidate_application(request, candidate_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
 @api_view(['DELETE'])
@@ -1615,7 +1631,7 @@ def delete_candidate_application(request, candidate_id):
     """Delete a candidate application"""
     if request.method == 'OPTIONS':
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'DELETE, OPTIONS'
@@ -1652,7 +1668,7 @@ def delete_candidate_application(request, candidate_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-    response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
 
@@ -2014,7 +2030,7 @@ def cancel_election(request):
                 {'error': 'Election settings not configured'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -2034,7 +2050,7 @@ def cancel_election(request):
                 {'error': 'No active or scheduled election to cancel'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -2066,7 +2082,7 @@ def cancel_election(request):
             'was_active': is_active
         }, status=status.HTTP_200_OK)
         
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -2079,7 +2095,7 @@ def cancel_election(request):
             {'error': 'An internal server error occurred while cancelling the election'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
     
@@ -2093,7 +2109,7 @@ def start_election(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken, Authorization'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -2108,7 +2124,7 @@ def start_election(request):
                 {'error': 'Election settings not configured'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -2118,7 +2134,7 @@ def start_election(request):
                 {'error': 'Only president and vice president can start elections'},
                 status=status.HTTP_403_FORBIDDEN
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -2131,7 +2147,7 @@ def start_election(request):
                 {'error': 'Start date and end date must be configured'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -2173,7 +2189,7 @@ def start_election(request):
                     'election_status': 'ended'
                 }, status=status.HTTP_200_OK)
             
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -2183,7 +2199,7 @@ def start_election(request):
                 {'error': 'End date must be after start date'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -2215,7 +2231,7 @@ def start_election(request):
             'election_status': 'active'
         }, status=status.HTTP_200_OK)
         
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
         
@@ -2228,7 +2244,7 @@ def start_election(request):
             {'error': 'An internal server error occurred while starting the election'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 @api_view(['DELETE'])
@@ -2319,7 +2335,7 @@ def register_view(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
@@ -2566,7 +2582,7 @@ MUBAS SOMASE Team"""
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
             # Set CORS headers
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
                 
@@ -2581,12 +2597,15 @@ MUBAS SOMASE Team"""
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             # Set CORS headers
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def activate_account(request, uidb64, token):
+    # Get the frontend URL dynamically
+    frontend_url = get_frontend_url()
+    
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         user = CustomUser.objects.get(pk=uid)
@@ -2598,7 +2617,7 @@ def activate_account(request, uidb64, token):
         if user.is_email_verified:
             # Redirect to login page with error message
             from django.shortcuts import redirect
-            return redirect('http://localhost:3000/login?error=already_verified')
+            return redirect(f'{frontend_url}/login?error=already_verified')
         else:
             user.is_active = True
             user.is_email_verified = True
@@ -2619,16 +2638,16 @@ def activate_account(request, uidb64, token):
             
             # Determine redirect based on user role
             if user.role == 'voter':
-                redirect_url = 'http://localhost:3000/votingDashboard'
+                redirect_url = f'{frontend_url}/votingDashboard'
             else:
-                redirect_url = 'http://localhost:3000/electionDashboard'
+                redirect_url = f'{frontend_url}/electionDashboard'
             
             # Return a redirect response
             from django.shortcuts import redirect
             response = redirect(redirect_url)
             
             # Set CORS headers
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Origin'] = frontend_url
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
         
@@ -2647,4 +2666,4 @@ def activate_account(request, uidb64, token):
         
         # Redirect to register page with error message
         from django.shortcuts import redirect
-        return redirect(f'http://localhost:3000/register?error={error_message}')
+        return redirect(f'{frontend_url}/register?error={error_message}')
