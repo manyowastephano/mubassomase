@@ -15,3 +15,8 @@ settings_module='SomaseVoting.deployment_settings' if 'RENDER_EXTERNAL_HOSTNAME'
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
 
 application = get_asgi_application()
+
+
+
+
+
