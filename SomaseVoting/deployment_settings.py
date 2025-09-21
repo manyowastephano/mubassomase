@@ -24,8 +24,7 @@ SECRET_KEY = os.environ['SECRET_KEY']
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+   "https://mubas-somase.onrender.com"
 ]
 if RENDER_EXTERNAL_HOSTNAME:
     CORS_ALLOWED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')

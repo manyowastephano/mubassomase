@@ -17,5 +17,3 @@ python manage.py migrate --noinput
 
 # Collect static files
 python manage.py collectstatic --noinput
-
-python manage.py createsuperuser --noinput --username covenant837 --email manyowastephano@gmail.com
