@@ -34,8 +34,8 @@ from django.conf import settings
 
 from django.http import JsonResponse
 
-def keep_alive(request):
-    return JsonResponse({"status": "ok", "message": "Instance is awake"})
+# def keep_alive(request):
+#     return JsonResponse({"status": "ok", "message": "Instance is awake"})
 
 def get_frontend_url():
     """

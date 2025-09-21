@@ -196,7 +196,7 @@ class CustomUser(AbstractUser):
         return self.username
 
     class Meta:
-        pass
+        db_table = 'auth_user'
 class Candidate(models.Model):
     POSITION_CHOICES = [
         ('president', 'President'),
