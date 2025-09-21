@@ -195,7 +195,7 @@ class CustomUser(AbstractUser):
         return self.username
 
     class Meta:
-        db_table = 'auth_user'
+        db_table = 'vottingapp_user'
 class Candidate(models.Model):
     POSITION_CHOICES = [
         ('president', 'President'),
