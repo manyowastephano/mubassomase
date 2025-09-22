@@ -2524,7 +2524,7 @@ def register_view(request):
                         </div>
                         <div class="content">
                             <h2>Hello {user.username},</h2>
-                            <p>Thank you for registering as  MUBAS SOMASE member. To complete your registration, please verify your email address by clicking the button below:</p>
+                            <p>Thank you for registering as  MUBAS SOMASE Team. To complete your registration, please verify your email address by clicking the button below:</p>
                             
                             <center>
                                 <a style="color:white" href="http://{current_site.domain}/activate/{uid}/{token}/" class="button">

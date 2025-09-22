@@ -121,8 +121,6 @@ from django.contrib.auth import authenticate
 from .models import CustomUser, Candidate, Vote, Election,ElectionSettings,AuditLog
 from django.db.models import Q
 import re
-import cloudinary.uploader
-
 class AuditLogSerializer(serializers.ModelSerializer):
     action_display = serializers.CharField(source='get_action_display', read_only=True)
     timestamp_formatted = serializers.SerializerMethodField()
@@ -137,8 +135,6 @@ class AuditLogSerializer(serializers.ModelSerializer):
     
     def get_user_email(self, obj):
         return obj.user.email if obj.user else 'System'
-    
-    
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
     profile_photo = serializers.CharField(required=False, allow_null=True)
@@ -190,7 +186,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
-
 
 
 class UserLoginSerializer(serializers.Serializer):
