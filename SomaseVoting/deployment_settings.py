@@ -13,21 +13,28 @@ if RENDER_EXTERNAL_HOSTNAME:
 if os.environ.get('ALLOWED_HOSTS'):
     ALLOWED_HOSTS.extend(os.environ.get('ALLOWED_HOSTS').split(','))
 
+ALLOWED_HOSTS.extend([
+    'mubassomase-1.onrender.com',
+    'mubas-somase.onrender.com'
+])
 CSRF_TRUSTED_ORIGINS = [
-     "https://mubas-somase.onrender.com",
-    "https://mubassomase-1.onrender.com",
 ]
 if RENDER_EXTERNAL_HOSTNAME:
     CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
 if os.environ.get('CSRF_TRUSTED_ORIGINS'):
     CSRF_TRUSTED_ORIGINS.extend(os.environ.get('CSRF_TRUSTED_ORIGINS').split(','))
 
+CSRF_TRUSTED_ORIGINS.extend([
+    'https://mubassomase-1.onrender.com',
+    'https://mubas-somase.onrender.com'
+])
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 SECRET_KEY = os.environ['SECRET_KEY']
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-   "https://mubas-somase.onrender.com"
+   "https://mubas-somase.onrender.com",
+    "https://mubassomase-1.onrender.com"
 ]
 if RENDER_EXTERNAL_HOSTNAME:
     CORS_ALLOWED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
@@ -93,3 +100,23 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 SERVER_EMAIL = os.environ.get('SERVER_EMAIL')
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
