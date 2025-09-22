@@ -31,7 +31,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from .token_generator import account_activation_token
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
-
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import JsonResponse
 
 # def keep_alive(request):
@@ -51,7 +51,23 @@ def get_frontend_url():
     # Default to your main frontend URL
     return 'https://mubas-somase.onrender.com'
 
-# Helper function to create audit logs
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+@ensure_csrf_cookie
+def get_csrf_token(request):
+    """
+    Ensure CSRF token is set in cookie
+    """
+    response = Response({
+        'message': 'CSRF cookie set'
+    }, status=status.HTTP_200_OK)
+    
+    frontend_url = get_frontend_url()
+    response['Access-Control-Allow-Origin'] = frontend_url
+    response['Access-Control-Allow-Credentials'] = 'true'
+    return response
+
 def create_audit_log(user, action, details):
     audit_log = AuditLog.objects.create(
         user=user,
@@ -2334,7 +2350,6 @@ def send_election_start_emails(request):
 
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
-@csrf_exempt
 def register_view(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests

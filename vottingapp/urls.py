@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+     path('get-csrf/', views.get_csrf_token, name='get_csrf_token'),
    # path('keep-alive/', views.keep_alive, name='keep_alive'),
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
