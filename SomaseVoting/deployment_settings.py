@@ -17,7 +17,12 @@ ALLOWED_HOSTS.extend([
     'mubassomase-1.onrender.com',
     'mubas-somase.onrender.com'
 ])
+
 CSRF_TRUSTED_ORIGINS = [
+    'https://mubassomase-1.onrender.com',
+    'https://mubas-somase.onrender.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
 ]
 if RENDER_EXTERNAL_HOSTNAME:
     CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
@@ -31,11 +36,14 @@ CSRF_TRUSTED_ORIGINS.extend([
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 SECRET_KEY = os.environ['SECRET_KEY']
 
-# CORS settings
+
 CORS_ALLOWED_ORIGINS = [
-   "https://mubas-somase.onrender.com",
-    "https://mubassomase-1.onrender.com"
+    "https://mubas-somase.onrender.com",
+    "https://mubassomase-1.onrender.com",
+    "http://localhost:3000",  
+    "http://127.0.0.1:3000",
 ]
+
 if RENDER_EXTERNAL_HOSTNAME:
     CORS_ALLOWED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
 if os.environ.get('CORS_ALLOWED_ORIGINS'):
@@ -44,9 +52,9 @@ if os.environ.get('CORS_ALLOWED_ORIGINS'):
 CORS_ALLOW_CREDENTIALS = True
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'vottingapp.middleware.CorsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

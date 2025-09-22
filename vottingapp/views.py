@@ -41,12 +41,16 @@ def get_frontend_url():
     """
     Returns the appropriate frontend URL based on environment
     """
-    # Check if we're in production (using the deployment settings)
     if hasattr(settings, 'FRONTEND_URL'):
         return settings.FRONTEND_URL
     
-    # Default to localhost for development
+    # Check the request origin if available
+    if hasattr(settings, 'CORS_ALLOWED_ORIGINS') and settings.CORS_ALLOWED_ORIGINS:
+        return settings.CORS_ALLOWED_ORIGINS[0]
+    
+    # Default to your main frontend URL
     return 'https://mubas-somase.onrender.com'
+
 # Helper function to create audit logs
 def create_audit_log(user, action, details):
     audit_log = AuditLog.objects.create(
