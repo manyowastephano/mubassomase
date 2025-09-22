@@ -13,7 +13,10 @@ if RENDER_EXTERNAL_HOSTNAME:
 if os.environ.get('ALLOWED_HOSTS'):
     ALLOWED_HOSTS.extend(os.environ.get('ALLOWED_HOSTS').split(','))
 
-CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = [
+     "https://mubas-somase.onrender.com",
+    "https://mubassomase-1.onrender.com",
+]
 if RENDER_EXTERNAL_HOSTNAME:
     CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
 if os.environ.get('CSRF_TRUSTED_ORIGINS'):

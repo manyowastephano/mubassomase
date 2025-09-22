@@ -46,7 +46,7 @@ def get_frontend_url():
         return settings.FRONTEND_URL
     
     # Default to localhost for development
-    return 'http://localhost:3000'
+    return 'https://mubas-somase.onrender.com'
 # Helper function to create audit logs
 def create_audit_log(user, action, details):
     audit_log = AuditLog.objects.create(
