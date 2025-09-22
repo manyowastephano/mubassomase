@@ -2346,75 +2346,8 @@ def send_election_start_emails(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
         
-    
+        
 
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def activate_account(request, uidb64, token):
-    # Get the frontend URL dynamically
-    frontend_url = get_frontend_url()
-    
-    try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = CustomUser.objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
-        user = None
-    
-    if user is not None and account_activation_token.check_token(user, token):
-        # Check if user is already verified
-        if user.is_email_verified:
-            # Redirect to login page with error message
-            from django.shortcuts import redirect
-            return redirect(f'{frontend_url}/login?error=already_verified')
-        else:
-            user.is_active = True
-            user.is_email_verified = True
-            user.save()
-            
-            # Set the backend attribute to your custom backend before logging in
-            user.backend = 'vottingapp.backends.EmailBackend'
-            
-            # Log the user in automatically
-            login(request, user)
-            
-            # Create audit log
-            create_audit_log(
-                user,
-                'email_verified',
-                f"Email verified for {user.email}"
-            )
-            
-            # Determine redirect based on user role
-            if user.role == 'voter':
-                redirect_url = f'{frontend_url}/votingDashboard'
-            else:
-                redirect_url = f'{frontend_url}/electionDashboard'
-            
-            # Return a redirect response
-            from django.shortcuts import redirect
-            response = redirect(redirect_url)
-            
-            # Set CORS headers
-            response['Access-Control-Allow-Origin'] = frontend_url
-            response['Access-Control-Allow-Credentials'] = 'true'
-            return response
-        
-    else:
-        # Check if the user exists but token is invalid
-        if user is not None:
-            error_message = 'invalid_token'
-            # Create audit log for failed verification attempt
-            create_audit_log(
-                user,
-                'email_verification_failed',
-                f"Failed email verification attempt for {user.email} with invalid token"
-            )
-        else:
-            error_message = 'no_user_found'
-        
-        # Redirect to register page with error message
-        from django.shortcuts import redirect
-        return redirect(f'{frontend_url}/register?error={error_message}')
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
 def register_view(request):
@@ -2429,8 +2362,17 @@ def register_view(request):
         
     if request.method == 'POST':
         try:
-            # For file uploads, use request.data directly (DRF handles multipart/form-data)
-            data = request.data.copy()
+            # For file uploads, use request.data directly
+            if request.content_type.startswith('multipart/form-data'):
+                data = request.data
+            else:
+                # For JSON requests
+                try:
+                    data = json.loads(request.body)
+                except json.JSONDecodeError:
+                    return Response({
+                        'error': 'Invalid request format. Please check your input and try again.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
             
             # Validate required fields
             required_fields = ['username', 'email', 'password', 'password2']
@@ -2445,7 +2387,7 @@ def register_view(request):
             email_pattern = r'^mse\d{2}-.*@mubas\.ac\.mw$'
             if not re.match(email_pattern, data['email']):
                 return Response({
-                    'error': 'Only MUBAS student emails (format: mseYY-username@mubas.ac.mw) are allowed for registration. Please use your official MUBAS email.'
+                    'error': 'Only MUBAS  SOMASE student emails (format: mseYY-username@mubas.ac.mw) are allowed for registration. Please use your official MUBAS email.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Check if email already exists and is verified
@@ -2514,7 +2456,7 @@ def register_view(request):
                 token = account_activation_token.make_token(user)
                 
                 # Create HTML email message
-                mail_subject = 'Activate your SOMASE Voting account'
+                mail_subject = 'Activate your MUBAS SOMASE Voting account'
                 
                 # HTML content with styling
                 html_content = f"""
@@ -2581,8 +2523,8 @@ def register_view(request):
                              <h2>Email Verification</h2>
                         </div>
                         <div class="content">
-                            <h2>Hi {user.username},</h2>
-                            <p>Thank you for registering for the SOMASE Voting System. To complete your registration, please verify your email address by clicking the button below:</p>
+                            <h2>Hello {user.username},</h2>
+                            <p>Thank you for registering as  MUBAS SOMASE member. To complete your registration, please verify your email address by clicking the button below:</p>
                             
                             <center>
                                 <a style="color:white" href="http://{current_site.domain}/activate/{uid}/{token}/" class="button">
@@ -2677,3 +2619,70 @@ MUBAS SOMASE Team"""
             response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def activate_account(request, uidb64, token):
+    # Get the frontend URL dynamically
+    frontend_url = get_frontend_url()
+    
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = CustomUser.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+        user = None
+    
+    if user is not None and account_activation_token.check_token(user, token):
+        # Check if user is already verified
+        if user.is_email_verified:
+            # Redirect to login page with error message
+            from django.shortcuts import redirect
+            return redirect(f'{frontend_url}/login?error=already_verified')
+        else:
+            user.is_active = True
+            user.is_email_verified = True
+            user.save()
+            
+            # Set the backend attribute to your custom backend before logging in
+            user.backend = 'vottingapp.backends.EmailBackend'
+            
+            # Log the user in automatically
+            login(request, user)
+            
+            # Create audit log
+            create_audit_log(
+                user,
+                'email_verified',
+                f"Email verified for {user.email}"
+            )
+            
+            # Determine redirect based on user role
+            if user.role == 'voter':
+                redirect_url = f'{frontend_url}/votingDashboard'
+            else:
+                redirect_url = f'{frontend_url}/electionDashboard'
+            
+            # Return a redirect response
+            from django.shortcuts import redirect
+            response = redirect(redirect_url)
+            
+            # Set CORS headers
+            response['Access-Control-Allow-Origin'] = frontend_url
+            response['Access-Control-Allow-Credentials'] = 'true'
+            return response
+        
+    else:
+        # Check if the user exists but token is invalid
+        if user is not None:
+            error_message = 'invalid_token'
+            # Create audit log for failed verification attempt
+            create_audit_log(
+                user,
+                'email_verification_failed',
+                f"Failed email verification attempt for {user.email} with invalid token"
+            )
+        else:
+            error_message = 'no_user_found'
+        
+        # Redirect to register page with error message
+        from django.shortcuts import redirect
+        return redirect(f'{frontend_url}/register?error={error_message}')

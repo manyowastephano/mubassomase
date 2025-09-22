@@ -138,7 +138,6 @@ class AuditLogSerializer(serializers.ModelSerializer):
     def get_user_email(self, obj):
         return obj.user.email if obj.user else 'System'
     
-'''
     
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
@@ -192,76 +191,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
- '''
-
-class UserRegistrationSerializer(serializers.ModelSerializer):
-    password2 = serializers.CharField(write_only=True)
-    profile_photo = serializers.FileField(required=False, allow_null=True)  # Use FileField instead of ImageField
-    
-    class Meta:
-        model = CustomUser
-        fields = ('id', 'username', 'email', 'password', 'password2', 'profile_photo', 'role')
-        extra_kwargs = {
-            'password': {'write_only': True},
-            'role': {'read_only': True} 
-        }
-    
-    def validate_username(self, value):
-        if CustomUser.objects.filter(username=value).exists():
-            raise serializers.ValidationError("A user with that username already exists.")
-        return value
-    
-    def validate_email(self, value):
-        if CustomUser.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with that email already exists.")
-        email_pattern = r'^mse\d{2}-.*@mubas\.ac\.mw$'
-        if not re.match(email_pattern, value):
-            raise serializers.ValidationError(
-                "Only MUBAS SOMASE student emails (mseYY-username@mubas.ac.mw) are allowed for registration."
-            )
-        return value
-    
-    def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
-        
-        # Additional password strength validation
-        password = attrs['password']
-        if len(password) < 8:
-            raise serializers.ValidationError({"password": "Password must be at least 8 characters long."})
-        
-        if not any(char.isdigit() for char in password):
-            raise serializers.ValidationError({"password": "Password must contain at least one digit."})
-        
-        if not any(char.isupper() for char in password):
-            raise serializers.ValidationError({"password": "Password must contain at least one uppercase letter."})
-        
-        return attrs
-    
-    def create(self, validated_data):
-        validated_data.pop('password2')
-        password = validated_data.pop('password')
-        profile_photo = validated_data.pop('profile_photo', None)
-        
-        # Upload profile photo to Cloudinary if provided
-        if profile_photo:
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    profile_photo, 
-                    folder="voting_app/profiles/",
-                    resource_type="image"
-                )
-                validated_data['profile_photo'] = upload_result['public_id']
-            except Exception as e:
-                # If Cloudinary upload fails, continue without profile photo
-                validated_data['profile_photo'] = None
-        else:
-            validated_data['profile_photo'] = None
-
-        user = CustomUser.objects.create(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
 
 
 class UserLoginSerializer(serializers.Serializer):
