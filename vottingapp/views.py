@@ -51,23 +51,52 @@ def get_frontend_url():
     # Default to your main frontend URL
     return 'https://mubas-somase.onrender.com'
 
-# Add to views.py
+
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-@ensure_csrf_cookie
 def get_csrf_token(request):
     """
-    Ensure CSRF token is set in cookies
+    Get CSRF token directly in response
     """
+    # Force CSRF token generation
+    csrf_token = get_token(request)
+    
     response = Response({
-        'message': 'CSRF cookie set successfully',
-        'csrf_token': get_token(request) if hasattr(request, 'csrf_processing_done') else 'token_generated'
+        'csrfToken': csrf_token,
+        'message': 'CSRF token generated successfully'
     }, status=status.HTTP_200_OK)
     
-    response['Access-Control-Allow-Origin'] = get_frontend_url()
+    # Set it as a cookie with proper settings for cross-domain
+    frontend_url = get_frontend_url()
+    domain = None
+    
+    # Extract domain for cookie setting (remove protocol and path)
+    if frontend_url.startswith('https://'):
+        domain = frontend_url[8:]  # Remove 'https://'
+    elif frontend_url.startswith('http://'):
+        domain = frontend_url[7:]  # Remove 'http://'
+    
+    # Remove port and path if present
+    if domain and ':' in domain:
+        domain = domain.split(':')[0]
+    if domain and '/' in domain:
+        domain = domain.split('/')[0]
+    
+    response.set_cookie(
+        'csrftoken',
+        csrf_token,
+        max_age=3600 * 24 * 7,  # 7 days
+        secure=True if 'https' in frontend_url else False,
+        samesite='None' if 'https' in frontend_url else 'Lax',
+        httponly=False,  # Allow JavaScript to read it
+        domain=domain if domain and domain not in ['localhost', '127.0.0.1'] else None
+    )
+    
+    response['Access-Control-Allow-Origin'] = frontend_url
     response['Access-Control-Allow-Credentials'] = 'true'
+    response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
+    response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
     return response
-
 def create_audit_log(user, action, details):
     audit_log = AuditLog.objects.create(
         user=user,
