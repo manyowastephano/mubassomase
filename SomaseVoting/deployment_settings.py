@@ -105,8 +105,8 @@ CSRF_USE_SESSIONS = False
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read the cookie
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
-
-
+CSRF_COOKIE_AGE = 31449600
+CSRF_COOKIE_DOMAIN = None
 
 
 # Email configuration for production

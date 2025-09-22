@@ -33,7 +33,7 @@ from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import JsonResponse
-
+from django.middleware.csrf import get_token
 # def keep_alive(request):
 #     return JsonResponse({"status": "ok", "message": "Instance is awake"})
 
@@ -51,20 +51,20 @@ def get_frontend_url():
     # Default to your main frontend URL
     return 'https://mubas-somase.onrender.com'
 
-
+# Add to views.py
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 @ensure_csrf_cookie
 def get_csrf_token(request):
     """
-    Ensure CSRF token is set in cookie
+    Ensure CSRF token is set in cookies
     """
     response = Response({
-        'message': 'CSRF cookie set'
+        'message': 'CSRF cookie set successfully',
+        'csrf_token': get_token(request) if hasattr(request, 'csrf_processing_done') else 'token_generated'
     }, status=status.HTTP_200_OK)
     
-    frontend_url = get_frontend_url()
-    response['Access-Control-Allow-Origin'] = frontend_url
+    response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
 
@@ -2346,10 +2346,9 @@ def send_election_start_emails(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
         
-        
-
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
+@csrf_exempt
 def register_view(request):
     if request.method == 'OPTIONS':
         # Handle preflight requests
