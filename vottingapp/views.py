@@ -507,7 +507,7 @@ def moderator_management(request):
 def check_auth_view(request):
     profile_photo_url = None
     if request.user.profile_photo:
-        profile_photo_url = request.build_absolute_uri(request.user.profile_photo.url)
+        profile_photo_url = request.user.profile_photo.url
     
     return Response({
         'message': 'Authenticated',
@@ -612,6 +612,7 @@ def logout_view(request):
     response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
+
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])  # Changed from IsAuthenticated to AllowAny
 @csrf_exempt
