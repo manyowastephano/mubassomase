@@ -5,6 +5,8 @@ from django.contrib.auth import authenticate
 from .models import CustomUser, Candidate, Vote, Election,ElectionSettings,AuditLog
 from django.db.models import Q
 import re
+import cloudinary
+import cloudinary.uploader
 class AuditLogSerializer(serializers.ModelSerializer):
     action_display = serializers.CharField(source='get_action_display', read_only=True)
     timestamp_formatted = serializers.SerializerMethodField()
@@ -21,7 +23,6 @@ class AuditLogSerializer(serializers.ModelSerializer):
         return obj.user.email if obj.user else 'System'
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
-    #profile_photo = serializers.CharField(required=False, allow_null=True)
     profile_photo = serializers.ImageField(required=False, allow_null=True)  
      
     class Meta:
@@ -68,16 +69,32 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         profile_photo = validated_data.pop('profile_photo', None)
         validated_data.pop('password2')
         password = validated_data.pop('password')
+        
+        # Create user first without the profile photo
         user = CustomUser.objects.create(**validated_data)
-        
-        if profile_photo:
-            user.profile_photo = profile_photo
-            user.save()
-        
         user.set_password(password)
+        
+        # Handle profile photo upload to Cloudinary
+        if profile_photo:
+            try:
+                # Upload to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    profile_photo,
+                    folder='voting_app/profiles/',
+                    resource_type='image'
+                )
+                user.profile_photo = upload_result['secure_url']
+                print(f"Profile photo uploaded successfully: {upload_result['secure_url']}")
+            except Exception as e:
+                # If Cloudinary upload fails, raise a validation error
+                error_msg = f"Failed to upload profile photo: {str(e)}"
+                print(error_msg)
+                # Delete the user since registration failed
+                user.delete()
+                raise serializers.ValidationError({"profile_photo": error_msg})
+        
         user.save()
         return user
-
 
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.CharField()  # Change from EmailField to CharField

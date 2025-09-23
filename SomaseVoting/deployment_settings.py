@@ -88,11 +88,6 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
     'SECURE': True,
     'MEDIA_TAG': 'voting_app',
-    'INVALID_IMAGE_URL': 'https://res.cloudinary.com/demo/image/upload/v1486020461/error.png',
-    'EXCLUDE_DELETE_ORPHANED_MEDIA_PATHS': (),
-    'STATICFILES_MANIFEST_ROOT': os.path.join(BASE_DIR, 'my-manifest-directory'),
-    'STATIC_IMAGES_EXTENSIONS': ['jpg', 'jpe', 'jpeg', 'jpc', 'jp2', 'j2k', 'wdp', 'jxr', 
-                                'hdp', 'png', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'ico'],
 }
 
 cloudinary.config(
