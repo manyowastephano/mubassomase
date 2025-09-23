@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login, logout
 from .models import CustomUser, Candidate, Vote, ElectionSettings, AuditLog,UserAuditLogDeletion
-from .serializers import UserRegistrationSerializer, UserLoginSerializer, CandidateRegistrationSerializer, CandidateSerializer, ElectionSettingsSerializer, AuditLogSerializer
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, CandidateRegistrationSerializer,UserSerializer, CandidateSerializer, ElectionSettingsSerializer, AuditLogSerializer
 import json
 from django.contrib.auth import authenticate
 from django.utils import timezone
@@ -39,22 +39,22 @@ from django.middleware.csrf import get_token
 import cloudinary
 import cloudinary.uploader
 from django.contrib.auth.decorators import login_required
-# def keep_alive(request):
-#     return JsonResponse({"status": "ok", "message": "Instance is awake"})
+from django.conf import settings
 
 def get_frontend_url():
     """
     Returns the appropriate frontend URL based on environment
     """
-    if hasattr(settings, 'FRONTEND_URL'):
+    # Use FRONTEND_URL if explicitly set
+    if hasattr(settings, 'FRONTEND_URL') and settings.FRONTEND_URL:
         return settings.FRONTEND_URL
     
-    # Check the request origin if available
-    if hasattr(settings, 'CORS_ALLOWED_ORIGINS') and settings.CORS_ALLOWED_ORIGINS:
-        return settings.CORS_ALLOWED_ORIGINS[0]
-    
-    # Default to your main frontend URL
-    return 'https://mubas-somase.onrender.com'
+    # Determine based on DEBUG mode
+    if getattr(settings, 'DEBUG', False):
+        return 'http://localhost:3000'  # Development
+    else:
+        # Production - use the main domain
+        return 'https://mubas-somase.onrender.com'
 
 
 @api_view(['GET'])
@@ -505,6 +505,7 @@ def moderator_management(request):
         response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
+'''
 
 # Authentication Views
 @api_view(['GET'])
@@ -523,7 +524,15 @@ def check_auth_view(request):
         'profile_photo': profile_photo_url,
         'role': request.user.role
     }, status=status.HTTP_200_OK)
-
+'''
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def check_auth_view(request):
+    serializer = UserSerializer(request.user)
+    return Response({
+        'message': 'Authenticated',
+        **serializer.data  # This includes all user data properly serialized
+    }, status=status.HTTP_200_OK)
 
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
@@ -2389,7 +2398,6 @@ def send_election_start_emails(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
  
- 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def activate_account(request, uidb64, token):
@@ -2420,14 +2428,24 @@ def activate_account(request, uidb64, token):
                     f"Email verified for {user.email}"
                 )
                 
-                redirect_url = f'{frontend_url}/votingDashboard' if user.role == 'voter' else f'{frontend_url}/electionDashboard'
+                # Redirect based on user role
+                if user.role == 'voter':
+                    redirect_url = f'{frontend_url}/votingDashboard'
+                else:
+                    redirect_url = f'{frontend_url}/electionDashboard'
+                    
+                success_param = 'verified=true'
+                if '?' in redirect_url:
+                    redirect_url += f'&{success_param}'
+                else:
+                    redirect_url += f'?{success_param}'
             else:
                 redirect_url = f'{frontend_url}/login?error=already_verified'
         else:
             error_message = 'invalid_token' if user is not None else 'no_user_found'
             redirect_url = f'{frontend_url}/register?error={error_message}'
         
-        # Return HTML that redirects immediately
+        # Return HTML that redirects immediately to FRONTEND
         html_content = f"""
         <!DOCTYPE html>
         <html>
