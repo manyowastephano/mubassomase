@@ -24,7 +24,8 @@ urlpatterns = [
    path('api/start-election/', views.start_election, name='start-election'),
     path('api/cancel-election/', views.cancel_election, name='cancel-election'),
     path('api/reset-votes/', views.reset_votes, name='reset-votes'),
-    path('api/auth/user/delete/', views.delete_user_account, name='delete_user_account'),
+    #path('api/auth/user/delete/', views.delete_user_account, name='delete_user_account'),
+    path('api/delete-account/', views.delete_user_account, name='delete_account'),
     # Audit log endpoints
     path('api/candidates/delete-all/', views.delete_all_candidates, name='delete_all_candidates'),
     path('api/check-election-status/', views.check_election_status, name='check_election_status'),
