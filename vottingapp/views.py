@@ -2388,84 +2388,101 @@ def send_election_start_emails(request):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def activate_account(request, uidb64, token):
-    # Get the frontend URL dynamically
-    frontend_url = get_frontend_url()
-    
+    """
+    Handle email verification and return JSON response with redirect URL
+    """
     try:
-        uid = force_str(urlsafe_base64_decode(uidb64))
-        user = CustomUser.objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
-        user = None
-    
-    if user is not None and account_activation_token.check_token(user, token):
-        # Check if user is already verified
-        if user.is_email_verified:
-            # Return JSON response instead of redirect
+        # Get the frontend URL dynamically
+        frontend_url = get_frontend_url()
+        
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = CustomUser.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            user = None
+        
+        if user is not None and account_activation_token.check_token(user, token):
+            # Check if user is already verified
+            if user.is_email_verified:
+                response = Response({
+                    'success': False,
+                    'message': 'Email already verified',
+                    'redirect_url': f'{frontend_url}/login?error=already_verified'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                user.is_active = True
+                user.is_email_verified = True
+                user.save()
+                
+                # Set the backend attribute to your custom backend before logging in
+                user.backend = 'vottingapp.backends.EmailBackend'
+                
+                # Log the user in automatically
+                login(request, user)
+                
+                # Create audit log
+                create_audit_log(
+                    user,
+                    'email_verified',
+                    f"Email verified for {user.email}"
+                )
+                
+                # Determine redirect based on user role
+                if user.role == 'voter':
+                    redirect_url = f'{frontend_url}/votingDashboard'
+                else:
+                    redirect_url = f'{frontend_url}/electionDashboard'
+                
+                response = Response({
+                    'success': True,
+                    'message': 'Email verified successfully',
+                    'redirect_url': redirect_url,
+                    'user': {
+                        'id': user.id,
+                        'email': user.email,
+                        'username': user.username,
+                        'role': user.role
+                    }
+                }, status=status.HTTP_200_OK)
+            
+        else:
+            # Check if the user exists but token is invalid
+            error_message = 'invalid_token' if user is not None else 'no_user_found'
+            
             response = Response({
                 'success': False,
-                'message': 'Email already verified',
-                'redirect_url': f'{frontend_url}/login?error=already_verified'
+                'message': 'Invalid verification link',
+                'redirect_url': f'{frontend_url}/register?error={error_message}'
             }, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            user.is_active = True
-            user.is_email_verified = True
-            user.save()
             
-            # Set the backend attribute to your custom backend before logging in
-            user.backend = 'vottingapp.backends.EmailBackend'
-            
-            # Log the user in automatically
-            login(request, user)
-            
-            # Create audit log
-            create_audit_log(
-                user,
-                'email_verified',
-                f"Email verified for {user.email}"
-            )
-            
-            # Determine redirect based on user role
-            if user.role == 'voter':
-                redirect_url = f'{frontend_url}/votingDashboard'
-            else:
-                redirect_url = f'{frontend_url}/electionDashboard'
-            
-            # Return JSON response with redirect URL
-            response = Response({
-                'success': True,
-                'message': 'Email verified successfully',
-                'redirect_url': redirect_url,
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'username': user.username,
-                    'role': user.role
-                }
-            }, status=status.HTTP_200_OK)
+            # Create audit log for failed verification attempt if user exists
+            if user is not None:
+                create_audit_log(
+                    user,
+                    'email_verification_failed',
+                    f"Failed email verification attempt for {user.email} with invalid token"
+                )
         
-    else:
-        error_message = 'invalid_token' if user is not None else 'no_user_found'
+        # Set CORS headers
+        response['Access-Control-Allow-Origin'] = frontend_url
+        response['Access-Control-Allow-Credentials'] = 'true'
+        return response
         
-        # Return JSON response instead of redirect
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in account activation: {str(e)}", exc_info=True)
+        
+        frontend_url = get_frontend_url()
         response = Response({
             'success': False,
-            'message': 'Invalid verification link',
-            'redirect_url': f'{frontend_url}/register?error={error_message}'
-        }, status=status.HTTP_400_BAD_REQUEST)
+            'message': 'An error occurred during account activation',
+            'redirect_url': f'{frontend_url}/register?error=activation_error'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        # Create audit log for failed verification attempt if user exists
-        if user is not None:
-            create_audit_log(
-                user,
-                'email_verification_failed',
-                f"Failed email verification attempt for {user.email} with invalid token"
-            )
-    
-    # Set CORS headers
-    response['Access-Control-Allow-Origin'] = frontend_url
-    response['Access-Control-Allow-Credentials'] = 'true'
-    return response
-    
+        response['Access-Control-Allow-Origin'] = frontend_url
+        response['Access-Control-Allow-Credentials'] = 'true'
+        return response
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
 @csrf_exempt
