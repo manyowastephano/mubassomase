@@ -209,19 +209,7 @@ class CandidateSerializer(serializers.ModelSerializer):
     def get_created_at_formatted(self, obj):
         return obj.created_at.strftime('%Y-%m-%d %H:%M:%S')
     
-class UserSerializer(serializers.ModelSerializer):
-    profile_photo = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = CustomUser
-        fields = ('id', 'username', 'email', 'profile_photo', 'has_voted', 'role', 
-                 'is_email_verified', 'created_at', 'updated_at')
-    
-    def get_profile_photo(self, obj):
-        # For CloudinaryField, just return the URL - it's already a full URL
-        if obj.profile_photo:
-            return obj.profile_photo.url
-        return None
+
 class VoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vote

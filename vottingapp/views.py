@@ -505,7 +505,6 @@ def moderator_management(request):
         response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
-'''
 
 # Authentication Views
 @api_view(['GET'])
@@ -523,15 +522,6 @@ def check_auth_view(request):
         'has_voted': request.user.has_voted,
         'profile_photo': profile_photo_url,
         'role': request.user.role
-    }, status=status.HTTP_200_OK)
-'''
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def check_auth_view(request):
-    serializer = UserSerializer(request.user)
-    return Response({
-        'message': 'Authenticated',
-        **serializer.data  # This includes all user data properly serialized
     }, status=status.HTTP_200_OK)
 
 @api_view(['POST', 'OPTIONS'])
@@ -2397,16 +2387,13 @@ def send_election_start_emails(request):
             {'error': 'An internal server error occurred while sending election start emails'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
- 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def activate_account(request, uidb64, token):
     """
-    Handle email verification and return HTML redirect
+    Handle email verification and return HTML response
     """
     try:
-        frontend_url = get_frontend_url()
-        
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = CustomUser.objects.get(pk=uid)
@@ -2428,37 +2415,109 @@ def activate_account(request, uidb64, token):
                     f"Email verified for {user.email}"
                 )
                 
-                # Redirect based on user role
-                if user.role == 'voter':
-                    redirect_url = f'{frontend_url}/votingDashboard'
-                else:
-                    redirect_url = f'{frontend_url}/electionDashboard'
-                    
-                success_param = 'verified=true'
-                if '?' in redirect_url:
-                    redirect_url += f'&{success_param}'
-                else:
-                    redirect_url += f'?{success_param}'
+                # Successful verification - show success message with login link
+                html_content = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Email Verification Successful</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                            padding: 50px;
+                            background-color: #f5f5f5;
+                        }
+                        .success {
+                            background-color: #d4edda;
+                            color: #155724;
+                            padding: 20px;
+                            border-radius: 5px;
+                            border: 1px solid #c3e6cb;
+                        }
+                        a {
+                            color: #155724;
+                            text-decoration: underline;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="success">
+                        <h1>Email Verification Successful!</h1>
+                        <p>Your email has been verified successfully.</p>
+                        <p><a href="https://mubas-somase.onrender.com/login">Click here to go to login page</a></p>
+                    </div>
+                </body>
+                </html>
+                """
             else:
-                redirect_url = f'{frontend_url}/login?error=already_verified'
+                # Email already verified
+                html_content = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Email Already Verified</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                            padding: 50px;
+                            background-color: #f5f5f5;
+                        }
+                        .info {
+                            background-color: #d1ecf1;
+                            color: #0c5460;
+                            padding: 20px;
+                            border-radius: 5px;
+                            border: 1px solid #bee5eb;
+                        }
+                        a {
+                            color: #0c5460;
+                            text-decoration: underline;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="info">
+                        <h1>Email Already Verified</h1>
+                        <p>This email address has already been verified.</p>
+                        <p><a href="https://mubas-somase.onrender.com/login">Click here to go to login page</a></p>
+                    </div>
+                </body>
+                </html>
+                """
         else:
-            error_message = 'invalid_token' if user is not None else 'no_user_found'
-            redirect_url = f'{frontend_url}/register?error={error_message}'
-        
-        # Return HTML that redirects immediately to FRONTEND
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Email Verification</title>
-            <meta http-equiv="refresh" content="0; url={redirect_url}">
-            <script>window.location.href = '{redirect_url}';</script>
-        </head>
-        <body>
-            <p>Redirecting... <a href="{redirect_url}">Click here if you are not redirected</a></p>
-        </body>
-        </html>
-        """
+            # Failed verification
+            html_content = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Email Verification Failed</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        text-align: center;
+                        padding: 50px;
+                        background-color: #f5f5f5;
+                    }
+                    .error {
+                        background-color: #f8d7da;
+                        color: #721c24;
+                        padding: 20px;
+                        border-radius: 5px;
+                        border: 1px solid #f5c6cb;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h1>Email Verification Failed</h1>
+                    <p>The verification link is invalid or has expired.</p>
+                    <p>Please try registering again or contact support if the problem persists.</p>
+                </div>
+            </body>
+            </html>
+            """
         
         return HttpResponse(html_content, content_type='text/html')
             
@@ -2467,19 +2526,34 @@ def activate_account(request, uidb64, token):
         logger = logging.getLogger(__name__)
         logger.error(f"Error in account activation: {str(e)}", exc_info=True)
         
-        frontend_url = get_frontend_url()
-        redirect_url = f'{frontend_url}/register?error=activation_error'
-        
-        html_content = f"""
+        # Error during activation process
+        html_content = """
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Email Verification Error</title>
-            <meta http-equiv="refresh" content="0; url={redirect_url}">
-            <script>window.location.href = '{redirect_url}';</script>
+            <title>Activation Error</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 50px;
+                    background-color: #f5f5f5;
+                }
+                .error {
+                    background-color: #f8d7da;
+                    color: #721c24;
+                    padding: 20px;
+                    border-radius: 5px;
+                    border: 1px solid #f5c6cb;
+                }
+            </style>
         </head>
         <body>
-            <p>Redirecting... <a href="{redirect_url}">Click here if you are not redirected</a></p>
+            <div class="error">
+                <h1>Activation Error</h1>
+                <p>An error occurred during the activation process.</p>
+                <p>Please try again or contact support if the problem persists.</p>
+            </div>
         </body>
         </html>
         """
