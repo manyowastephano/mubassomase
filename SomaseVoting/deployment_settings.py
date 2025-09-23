@@ -147,11 +147,11 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]'''
+
 import os
 import dj_database_url
 from .settings import *
 from .settings import BASE_DIR
-import cloudinary
 
 # Get the external hostname from environment
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
@@ -179,8 +179,13 @@ if RENDER_EXTERNAL_HOSTNAME:
 if os.environ.get('CSRF_TRUSTED_ORIGINS'):
     CSRF_TRUSTED_ORIGINS.extend(os.environ.get('CSRF_TRUSTED_ORIGINS').split(','))
 
+CSRF_TRUSTED_ORIGINS.extend([
+    'https://mubassomase-1.onrender.com',
+    'https://mubas-somase.onrender.com'
+])
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 SECRET_KEY = os.environ['SECRET_KEY']
+
 
 CORS_ALLOWED_ORIGINS = [
     "https://mubas-somase.onrender.com",
@@ -218,41 +223,21 @@ STORAGES = {
     },
 }
 
-# FIXED: Database configuration for production
-DATABASE_URL = os.environ.get('DATABASE_URL')
-if DATABASE_URL:
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            ssl_require=True
-        )
-    }
-else:
-    # Fallback to SQLite for build process
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+# Database configuration for production
+DATABASES = {
+    "default": dj_database_url.config(
+        default=os.environ['DATABASE_URL'],
+        conn_max_age=600,
+        ssl_require=True
+    )
+}
 
+# Cloudinary configuration for production
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
-    'SECURE': True,
-    'MEDIA_TAG': 'voting_app',
 }
-
-cloudinary.config(
-    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.environ.get('CLOUDINARY_API_KEY'),
-    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
-    secure=True
-)
-
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 # Add this to determine the frontend URL dynamically
 FRONTEND_URL = f'https://{RENDER_EXTERNAL_HOSTNAME}' if RENDER_EXTERNAL_HOSTNAME else 'http://localhost:3000'
@@ -266,12 +251,15 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 
 SESSION_COOKIE_SAMESITE = 'None'
 CSRF_COOKIE_SAMESITE = 'None'
-CSRF_COOKIE_HTTPONLY = False
+#CSRF_USE_SESSIONS = False
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read the cookie
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 CSRF_COOKIE_AGE = 31449600
 CSRF_COOKIE_DOMAIN = None
+CSRF_USE_SESSIONS = True
 
+###
 # Email configuration for production
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
@@ -293,7 +281,6 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
