@@ -132,48 +132,9 @@ class UserLoginSerializer(serializers.Serializer):
                     )
         else:
             raise serializers.ValidationError("Must include 'email' and 'password'.")
-'''
-
 class CandidateRegistrationSerializer(serializers.ModelSerializer):
-    profile_photo = serializers.CharField(required=True)
-    
-
-    email = serializers.EmailField(required=True)  # Add email field
-    
-    class Meta:
-        model = Candidate
-        fields = ('id', 'email', 'full_name', 'position', 'phone', 'slogan', 'manifesto', 'profile_photo')
-    
-    def validate_email(self, value):
-        # Check if email exists in the system
-        if not CustomUser.objects.filter(email=value).exists():
-            raise serializers.ValidationError("This email is not registered in our system.")
-        return value
-    
-    def validate_slogan(self, value):
-        if len(value) > 50:
-            raise serializers.ValidationError("Slogan must be 50 characters or less.")
-        return value
-    
-    def validate_manifesto(self, value):
-        word_count = len(value.strip().split())
-        if word_count > 200:
-            raise serializers.ValidationError("Manifesto must be 200 words or less.")
-        return value
-    
-    def create(self, validated_data):
-        # Remove email from validated_data as it's not a model field
-        email = validated_data.pop('email')
-        
-        # Add the user to the validated data from context
-        validated_data['user'] = self.context['user']
-        
-        return super().create(validated_data)
-'''
-
-class CandidateRegistrationSerializer(serializers.ModelSerializer):
-    profile_photo = serializers.ImageField(required=True)  # for form file uploads
-    email = serializers.EmailField(required=True)  # for checking registered users
+    profile_photo = serializers.ImageField(required=True)
+    email = serializers.EmailField(required=True)
 
     class Meta:
         model = Candidate
@@ -205,15 +166,25 @@ class CandidateRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("User context is required.")
         validated_data['user'] = user
 
-        # Handle Cloudinary upload for the profile photo
+        # Handle profile photo upload to Cloudinary
         profile_photo_file = validated_data.pop('profile_photo')
-        upload_result = cloudinary.uploader.upload(profile_photo_file)
-        validated_data['profile_photo'] = upload_result['secure_url']
+        
+        try:
+            # Upload to Cloudinary with proper folder
+            upload_result = cloudinary.uploader.upload(
+                profile_photo_file,
+                folder='voting_app/candidates/',
+                resource_type='image'
+            )
+            validated_data['profile_photo'] = upload_result['secure_url']
+            print(f"Candidate profile photo uploaded successfully: {upload_result['secure_url']}")
+        except Exception as e:
+            # If Cloudinary upload fails, raise a validation error
+            error_msg = f"Failed to upload profile photo: {str(e)}"
+            print(error_msg)
+            raise serializers.ValidationError({"profile_photo": error_msg})
 
         return super().create(validated_data)
-
-
-
 class CandidateSerializer(serializers.ModelSerializer):
     position_display = serializers.CharField(source='get_position_display', read_only=True)
     profile_photo_url = serializers.SerializerMethodField()

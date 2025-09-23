@@ -612,98 +612,106 @@ def logout_view(request):
     response['Access-Control-Allow-Origin'] = get_frontend_url()
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
-
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])  # Changed from IsAuthenticated to AllowAny
+@api_view(['POST', 'OPTIONS'])
+@permission_classes([permissions.AllowAny])
 @csrf_exempt
 def candidate_registration_view(request):
-    try:
-        # Get email from request data
-        email = request.data.get('email')
-        
-        # Check if email exists in the system
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            response = Response({
-                'error': 'This email is not registered in our system. Please register first before applying.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
-            response['Access-Control-Allow-Origin'] = get_frontend_url()
-            response['Access-Control-Allow-Credentials'] = 'true'
-            return response
-        
-        # Check if user already has any candidate application (for any position)
-        if Candidate.objects.filter(user=user).exists():
-            response = Response({
-                'error': 'This email has already been used to submit a candidate application.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
-            response['Access-Control-Allow-Origin'] = get_frontend_url()
-            response['Access-Control-Allow-Credentials'] = 'true'
-            return response
-        
-        # Check if user already has a candidate application for this specific position
-        position = request.data.get('position')
-        if Candidate.objects.filter(user=user, position=position).exists():
-            response = Response({
-                'error': f'You have already applied for the {dict(Candidate.POSITION_CHOICES).get(position)} position.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
-            response['Access-Control-Allow-Origin'] = get_frontend_url()
-            response['Access-Control-Allow-Credentials'] = 'true'
-            return response
-        
-        # Pass the user and request in the context to the serializer
-        serializer = CandidateRegistrationSerializer(data=request.data, context={'user': user, 'request': request})
-        
-        if serializer.is_valid():
-            candidate = serializer.save()
-            
-            # Create audit log
-            create_audit_log(
-                user,
-                'candidate_application',
-                f"Applied for {dict(Candidate.POSITION_CHOICES).get(position)} position"
-            )
-            
-            response = Response({
-                'message': 'Candidate application submitted successfully!',
-                'candidate_id': candidate.id,
-                'full_name': candidate.full_name,
-                'position': candidate.position,
-                'status': candidate.status
-            }, status=status.HTTP_201_CREATED)
-            
-            # Set CORS headers
-            response['Access-Control-Allow-Origin'] = get_frontend_url()
-            response['Access-Control-Allow-Credentials'] = 'true'
-            return response
-        else:
-            response = Response(
-                serializer.errors, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-            # Set CORS headers
-            response['Access-Control-Allow-Origin'] = get_frontend_url()
-            response['Access-Control-Allow-Credentials'] = 'true'
-            return response
-            
-    except Exception as e:
-        # Log the exception for debugging
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Candidate registration error: {str(e)}", exc_info=True)
-        
-        response = Response({
-            'error': 'An internal server error occurred during candidate registration'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        # Set CORS headers
+    if request.method == 'OPTIONS':
+        # Handle preflight requests
+        response = Response()
         response['Access-Control-Allow-Origin'] = get_frontend_url()
         response['Access-Control-Allow-Credentials'] = 'true'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
+        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         return response
+        
+    if request.method == 'POST':
+        try:
+            # Get email from request data
+            email = request.data.get('email')
+            
+            # Check if email exists in the system
+            try:
+                user = CustomUser.objects.get(email=email)
+            except CustomUser.DoesNotExist:
+                response = Response({
+                    'error': 'This email is not registered in our system. Please register first before applying.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
+                response['Access-Control-Allow-Credentials'] = 'true'
+                return response
+            
+            # Check if user already has any candidate application (for any position)
+            if Candidate.objects.filter(user=user).exists():
+                response = Response({
+                    'error': 'This email has already been used to submit a candidate application.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
+                response['Access-Control-Allow-Credentials'] = 'true'
+                return response
+            
+            # Check if user already has a candidate application for this specific position
+            position = request.data.get('position')
+            if Candidate.objects.filter(user=user, position=position).exists():
+                response = Response({
+                    'error': f'You have already applied for the {dict(Candidate.POSITION_CHOICES).get(position)} position.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+                response['Access-Control-Allow-Origin'] = get_frontend_url()
+                response['Access-Control-Allow-Credentials'] = 'true'
+                return response
+            
+            # Pass the user and request in the context to the serializer
+            serializer = CandidateRegistrationSerializer(
+                data=request.data, 
+                context={'user': user, 'request': request}
+            )
+            
+            if serializer.is_valid():
+                candidate = serializer.save()
+                
+                # Create audit log
+                create_audit_log(
+                    user,
+                    'candidate_application',
+                    f"Applied for {dict(Candidate.POSITION_CHOICES).get(position)} position"
+                )
+                
+                response = Response({
+                    'message': 'Candidate application submitted successfully!',
+                    'candidate_id': candidate.id,
+                    'full_name': candidate.full_name,
+                    'position': candidate.position,
+                    'status': candidate.status
+                }, status=status.HTTP_201_CREATED)
+                
+            else:
+                response = Response(
+                    serializer.errors, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Set CORS headers
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
+            response['Access-Control-Allow-Credentials'] = 'true'
+            return response
+                
+        except Exception as e:
+            # Log the exception for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Candidate registration error: {str(e)}", exc_info=True)
+            
+            response = Response({
+                'error': 'An internal server error occurred during candidate registration'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Set CORS headers
+            response['Access-Control-Allow-Origin'] = get_frontend_url()
+            response['Access-Control-Allow-Credentials'] = 'true'
+            return response
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def get_candidates(request):
