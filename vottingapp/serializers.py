@@ -215,7 +215,7 @@ class CandidateRegistrationSerializer(serializers.ModelSerializer):
 #         return None
 class CandidateSerializer(serializers.ModelSerializer):
     position_display = serializers.CharField(source='get_position_display', read_only=True)
-    profile_photo = serializers.SerializerMethodField()
+    profile_photo = serializers.SerializerMethodField()  # This should work with get_profile_photo
     applied_on = serializers.DateTimeField(source='created_at', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
     
@@ -226,7 +226,7 @@ class CandidateSerializer(serializers.ModelSerializer):
                  'votes', 'user', 'created_at')
         read_only_fields = ('user', 'votes')
     
-    def get_profile_photo_url(self, obj):
+    def get_profile_photo(self, obj):  # Corrected method name
         # CloudinaryField automatically provides a URL
         if obj.profile_photo:
             return obj.profile_photo.url
