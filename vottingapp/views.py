@@ -2385,7 +2385,6 @@ def send_election_start_emails(request):
             {'error': 'An internal server error occurred while sending election start emails'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
- 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def activate_account(request, uidb64, token):
@@ -2401,9 +2400,12 @@ def activate_account(request, uidb64, token):
     if user is not None and account_activation_token.check_token(user, token):
         # Check if user is already verified
         if user.is_email_verified:
-            # Redirect to login page with error message
-            from django.shortcuts import redirect
-            return redirect(f'{frontend_url}/login?error=already_verified')
+            # Return JSON response instead of redirect
+            response = Response({
+                'success': False,
+                'message': 'Email already verified',
+                'redirect_url': f'{frontend_url}/login?error=already_verified'
+            }, status=status.HTTP_400_BAD_REQUEST)
         else:
             user.is_active = True
             user.is_email_verified = True
@@ -2428,36 +2430,47 @@ def activate_account(request, uidb64, token):
             else:
                 redirect_url = f'{frontend_url}/electionDashboard'
             
-            # Return a redirect response
-            from django.shortcuts import redirect
-            response = redirect(redirect_url)
-            
-            # Set CORS headers
-            response['Access-Control-Allow-Origin'] = frontend_url
-            response['Access-Control-Allow-Credentials'] = 'true'
-            return response
+            # Return JSON response with redirect URL
+            response = Response({
+                'success': True,
+                'message': 'Email verified successfully',
+                'redirect_url': redirect_url,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'username': user.username,
+                    'role': user.role
+                }
+            }, status=status.HTTP_200_OK)
         
     else:
-        # Check if the user exists but token is invalid
+        error_message = 'invalid_token' if user is not None else 'no_user_found'
+        
+        # Return JSON response instead of redirect
+        response = Response({
+            'success': False,
+            'message': 'Invalid verification link',
+            'redirect_url': f'{frontend_url}/register?error={error_message}'
+        }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create audit log for failed verification attempt if user exists
         if user is not None:
-            error_message = 'invalid_token'
-            # Create audit log for failed verification attempt
             create_audit_log(
                 user,
                 'email_verification_failed',
                 f"Failed email verification attempt for {user.email} with invalid token"
             )
-        else:
-            error_message = 'no_user_found'
-        
-        # Redirect to register page with error message
-        from django.shortcuts import redirect
-        return redirect(f'{frontend_url}/register?error={error_message}')
+    
+    # Set CORS headers
+    response['Access-Control-Allow-Origin'] = frontend_url
+    response['Access-Control-Allow-Credentials'] = 'true'
+    return response
     
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
 @csrf_exempt
 def register_view(request):
+    frontend_url = get_frontend_url()
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
@@ -2671,7 +2684,7 @@ def register_view(request):
                             <p>Thank you for registering as a MUBAS SOMASE member. To complete your registration, please verify your email address by clicking the button below:</p>
                             
                             <center>
-                                <a style="color:white" href="http://{current_site.domain}/activate/{uid}/{token}/" class="button">
+                                <a style="color:white" href="{frontend_url}/activate/{uid}/{token}" class="button">
                                     Verify Email Address
                                 </a>
                             </center>
