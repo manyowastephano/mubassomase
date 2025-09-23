@@ -36,6 +36,7 @@ from django.http import JsonResponse
 from django.middleware.csrf import get_token
 import cloudinary
 import cloudinary.uploader
+from django.contrib.auth.decorators import login_required
 # def keep_alive(request):
 #     return JsonResponse({"status": "ok", "message": "Instance is awake"})
 
@@ -2793,3 +2794,13 @@ MUBAS SOMASE Team"""
             response['Access-Control-Allow-Origin'] = get_frontend_url()
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
+# In your Django views.py
+@api_view(['DELETE'])
+@login_required
+def delete_user_account(request):
+    try:
+        user = request.user
+        user.delete()
+        return Response({'message': 'Account deleted successfully'}, status=200)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
