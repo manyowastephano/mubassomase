@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login, logout
 from .models import CustomUser, Candidate, Vote, ElectionSettings, AuditLog,UserAuditLogDeletion
-from .serializers import UserRegistrationSerializer, UserLoginSerializer, CandidateRegistrationSerializer,UserSerializer, CandidateSerializer, ElectionSettingsSerializer, AuditLogSerializer
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, CandidateRegistrationSerializer, CandidateSerializer, ElectionSettingsSerializer, AuditLogSerializer
 import json
 from django.contrib.auth import authenticate
 from django.utils import timezone
