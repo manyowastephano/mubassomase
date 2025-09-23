@@ -2409,11 +2409,6 @@ def activate_account(request, uidb64, token):
                 user.backend = 'vottingapp.backends.EmailBackend'
                 login(request, user)
                 
-                create_audit_log(
-                    user,
-                    'email_verified',
-                    f"Email verified for {user.email}"
-                )
                 
                 # Successful verification - show success message with login link
                 html_content = """
