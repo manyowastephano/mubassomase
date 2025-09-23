@@ -89,11 +89,11 @@ Hello everyone,
 
 The MUBAS SOMASE ELECTIONS has now started.
 
-Please log in to the system to cast your vote: http://localhost:3000/login
+Please log in to the system to cast your vote: https://mubas-somase.onrender.com/login
 
 The election will end on {election_settings.end_date.strftime("%Y-%m-%d at %H:%M") if election_settings.end_date else "a specified date"}.
 
-Thank you for participating in the democratic process.
+Thank you as you will participating in the voting process.
 
 Best regards,
 MUBAS SOMASE Election Committee

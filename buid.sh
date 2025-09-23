@@ -19,6 +19,6 @@ python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
 # Fixed superuser creation condition
-if [[ $CREATE_SUPERUSER == "True" ]]; then
-    python manage.py createsuperuser --noinput
-fi
+#if [[ $CREATE_SUPERUSER == "True" ]]; then
+ #   python manage.py createsuperuser --noinput
+#fi

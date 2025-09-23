@@ -512,7 +512,7 @@ def moderator_management(request):
 def check_auth_view(request):
     profile_photo_url = None
     if request.user.profile_photo:
-        profile_photo_url = request.user.profile_photo.url
+        profile_photo_url = request.user.profile_photo
     
     return Response({
         'message': 'Authenticated',

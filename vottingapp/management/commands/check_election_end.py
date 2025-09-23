@@ -112,7 +112,7 @@ class Command(BaseCommand):
         subject = 'MUBAS SOMASE Elections Has Started'
         
         # Use the frontend URL from settings or default to localhost
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://mubas-somase.onrender.com')
         
         message = f"""
 Hello everyone,
