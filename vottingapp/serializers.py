@@ -5,6 +5,7 @@ from django.contrib.auth import authenticate
 from .models import CustomUser, Candidate, Vote, Election,ElectionSettings,AuditLog
 from django.db.models import Q
 import re
+
 import cloudinary
 import cloudinary.uploader
 class AuditLogSerializer(serializers.ModelSerializer):
@@ -185,34 +186,7 @@ class CandidateRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"profile_photo": error_msg})
 
         return super().create(validated_data)
-# class CandidateSerializer(serializers.ModelSerializer):
-#     position_display = serializers.CharField(source='get_position_display', read_only=True)
-#     profile_photo_url = serializers.SerializerMethodField()
-#     applied_on = serializers.DateTimeField(source='created_at', read_only=True)
-#     email = serializers.EmailField(source='user.email', read_only=True)  # Add this line
-    
-#     class Meta:
-#         model = Candidate
-#         fields = ('id', 'email', 'full_name', 'position', 'position_display', 'phone', 
-#                  'slogan', 'manifesto', 'profile_photo_url', 'status', 'applied_on', 
-#                  'votes', 'user', 'created_at')
-#         read_only_fields = ('user', 'votes')
-    
-#     def get_profile_photo(self, obj):
-#         if obj.profile_photo:
-#             request = self.context.get('request')
-#             if request is not None:
-#                 return request.build_absolute_uri(obj.profile_photo.url)
-#             return obj.profile_photo.url
-#         return None
-    
-#     def get_created_at_formatted(self, obj):
-#         return obj.created_at.strftime('%Y-%m-%d %H:%M:%S')
-#     def get_profile_photo_url(self, obj):
-#         # CloudinaryField automatically provides a URL
-#         if obj.profile_photo:
-#             return obj.profile_photo.url
-#         return None
+
 class CandidateSerializer(serializers.ModelSerializer):
     position_display = serializers.CharField(source='get_position_display', read_only=True)
     profile_photo = serializers.SerializerMethodField()  # This should work with get_profile_photo
