@@ -40,6 +40,7 @@ urlpatterns = [
    path('api/candidate-application/<int:candidate_id>/update/', views.update_candidate_application, name='update-candidate-application'),
    path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
    path('api/cancel-election/', views.cancel_election, name='cancel_election'),
+   path('api/test-email/', views.test_email_configuration, name='test_email'),
     path('api/check-election-end/', views.check_election_end, name='check_election_end'),
     path('api/send-election-start-emails/', views.send_election_start_emails, name='send_election_start_emails'),
 ]
