@@ -2623,25 +2623,11 @@ def register_view(request):
             
             # Validate password strength
             password = data['password']
-            if len(password) < 8:
+            if len(password) < 6:
                 return Response({
-                    'error': 'Password must be at least 8 characters long.'
+                    'error': 'Password must be at least 6 characters long.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            if not any(char.isdigit() for char in password):
-                return Response({
-                    'error': 'Password must contain at least one number.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            if not any(char.isupper() for char in password):
-                return Response({
-                    'error': 'Password must contain at least one uppercase letter.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            if not any(char.islower() for char in password):
-                return Response({
-                    'error': 'Password must contain at least one lowercase letter.'
-                }, status=status.HTTP_400_BAD_REQUEST)
             
             # Check if passwords match
             if data['password'] != data['password2']:
@@ -2650,22 +2636,7 @@ def register_view(request):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Validate profile photo if provided
-            profile_photo = None
-            if 'profile_photo' in request.FILES:
-                profile_photo = request.FILES['profile_photo']
-                
-                # Validate file size (5MB limit)
-                if profile_photo.size > 5 * 1024 * 1024:
-                    return Response({
-                        'error': 'Profile photo must be less than 5MB.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-                
-                # Validate file type
-                allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-                if profile_photo.content_type not in allowed_types:
-                    return Response({
-                        'error': 'Invalid image format. Please use JPEG, PNG, GIF, or WebP.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
+           
             
             # Create the new user using serializer
             serializer = UserRegistrationSerializer(data=data)
@@ -2675,25 +2646,7 @@ def register_view(request):
                 user = serializer.save()
                 user.is_active = False  # User cannot login until email is verified
                 user.is_email_verified = False
-                
-                # Handle profile photo upload to Cloudinary
-                if profile_photo:
-                    try:
-                        # Upload to Cloudinary
-                        upload_result = cloudinary.uploader.upload(
-                            profile_photo,
-                            folder='voting_app/profiles/',
-                            resource_type='image'
-                        )
-                        user.profile_photo = upload_result['secure_url']
-                        print(f"Profile photo uploaded successfully: {upload_result['secure_url']}")
-                    except Exception as e:
-                        # Log the error but continue without profile photo
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.error(f"Cloudinary upload error: {str(e)}")
-                        user.profile_photo = None  # Set to None if upload fails
-                
+                 
                 user.save()
                 
                 # Generate verification token and URL
