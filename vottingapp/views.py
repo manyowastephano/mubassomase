@@ -2554,12 +2554,187 @@ def activate_account(request, uidb64, token):
         """
         
         return HttpResponse(html_content, content_type='text/html')
-    
+ 
+
+# Set up logger
+logger = logging.getLogger(__name__)
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def activate_account(request, uidb64, token):
+    """
+    Handle email verification and return HTML response
+    """
+    try:
+        logger.info(f"Account activation attempt - UID: {uidb64}, Token: {token}")
+        
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = CustomUser.objects.get(pk=uid)
+            logger.info(f"User found for activation: {user.username} ({user.email})")
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist) as e:
+            user = None
+            logger.error(f"Invalid UID or user not found: {str(e)}")
+
+        if user is not None and account_activation_token.check_token(user, token):
+            if not user.is_email_verified:
+                user.is_active = True
+                user.is_email_verified = True
+                user.save()
+                
+                user.backend = 'vottingapp.backends.EmailBackend'
+                login(request, user)
+                logger.info(f"User {user.username} successfully activated and logged in")
+                
+                # Successful verification - show success message with login link
+                html_content = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Email Verification Successful</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                            padding: 50px;
+                            background-color: #f5f5f5;
+                        }
+                        .success {
+                            background-color: #d4edda;
+                            color: #155724;
+                            padding: 20px;
+                            border-radius: 5px;
+                            border: 1px solid #c3e6cb;
+                        }
+                        a {
+                            color: #155724;
+                            text-decoration: underline;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="success">
+                        <h1>Email Verification Successful!</h1>
+                        <p>Your email has been verified successfully.</p>
+                        <p><a href="https://mubas-somase.onrender.com/login">Click here to go to login page</a></p>
+                    </div>
+                </body>
+                </html>
+                """
+            else:
+                # Email already verified
+                logger.warning(f"User {user.username} attempted to verify already verified email")
+                html_content = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Email Already Verified</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                            padding: 50px;
+                            background-color: #f5f5f5;
+                        }
+                        .info {
+                            background-color: #d1ecf1;
+                            color: #0c5460;
+                            padding: 20px;
+                            border-radius: 5px;
+                            border: 1px solid #bee5eb;
+                        }
+                        a {
+                            color: #0c5460;
+                            text-decoration: underline;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="info">
+                        <h1>Email Already Verified</h1>
+                        <p>This email address has already been verified.</p>
+                        <p><a href="https://mubas-somase.onrender.com/login">Click here to go to login page</a></p>
+                    </div>
+                </body>
+                </html>
+                """
+        else:
+            # Failed verification
+            logger.error(f"Invalid activation token for UID: {uidb64}")
+            html_content = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Email Verification Failed</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        text-align: center;
+                        padding: 50px;
+                        background-color: #f5f5f5;
+                    }
+                    .error {
+                        background-color: #f8d7da;
+                        color: #721c24;
+                        padding: 20px;
+                        border-radius: 5px;
+                        border: 1px solid #f5c6cb;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h1>Email Verification Failed</h1>
+                    <p>The verification link is invalid or has expired.</p>
+                    <p>Please try registering again or contact support if the problem persists.</p>
+                </div>
+            </body>
+            </html>
+            """
+        
+        return HttpResponse(html_content, content_type='text/html')
+            
+    except Exception as e:
+        logger.error(f"Critical error in account activation: {str(e)}", exc_info=True)
+        
+        # Error during activation process
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Activation Error</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 50px;
+                    background-color: #f5f5f5;
+                }
+                .error {
+                    background-color: #f8d7da;
+                    color: #721c24;
+                    padding: 20px;
+                    border-radius: 5px;
+                    border: 1px solid #f5c6cb;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="error">
+                <h1>Activation Error</h1>
+                <p>An error occurred during the activation process.</p>
+                <p>Please try again or contact support if the problem persists.</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return HttpResponse(html_content, content_type='text/html')
+
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
 @csrf_exempt
 def register_view(request):
-    # Import settings at the top of your views.py if not already done
     from django.conf import settings
     
     if request.method == 'OPTIONS':
@@ -2573,14 +2748,21 @@ def register_view(request):
         
     if request.method == 'POST':
         try:
+            logger.info("Registration request received")
+            logger.info(f"Content-Type: {request.content_type}")
+            logger.info(f"Request data keys: {list(request.data.keys()) if hasattr(request.data, 'keys') else 'No data keys'}")
+            
             # For file uploads, use request.data directly
             if request.content_type.startswith('multipart/form-data'):
                 data = request.data
+                logger.info("Processing multipart/form-data request")
             else:
                 # For JSON requests
                 try:
                     data = json.loads(request.body)
-                except json.JSONDecodeError:
+                    logger.info("Processing JSON request")
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error: {str(e)}")
                     return Response({
                         'error': 'Invalid request format. Please check your input and try again.'
                     }, status=status.HTTP_400_BAD_REQUEST)
@@ -2590,13 +2772,17 @@ def register_view(request):
             missing_fields = [field for field in required_fields if field not in data]
             
             if missing_fields:
+                logger.error(f"Missing required fields: {missing_fields}")
                 return Response({
                     'error': f'Missing required fields: {", ".join(missing_fields)}'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
+            logger.info(f"Registration attempt - Username: {data['username']}, Email: {data['email']}")
+            
             # Check if email matches the required MUBAS format
             email_pattern = r'^mse\d{2}-.*@mubas\.ac\.mw$'
             if not re.match(email_pattern, data['email']):
+                logger.error(f"Invalid email format: {data['email']}")
                 return Response({
                     'error': 'Only MUBAS SOMASE student emails (format: mseYY-username@mubas.ac.mw) are allowed for registration. Please use your official MUBAS email.'
                 }, status=status.HTTP_400_BAD_REQUEST)
@@ -2604,20 +2790,24 @@ def register_view(request):
             # Check if email already exists and is verified
             existing_user = CustomUser.objects.filter(email=data['email']).first()
             if existing_user and existing_user.is_email_verified:
+                logger.error(f"Email already registered and verified: {data['email']}")
                 return Response({
                     'error': 'This email is already registered. Please try logging in or use a different email.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Check if username already exists
             if CustomUser.objects.filter(username=data['username']).exists():
+                logger.error(f"Username already taken: {data['username']}")
                 return Response({
                     'error': 'This username is already taken. Please choose a different username.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # If email exists but is not verified, delete the old user
             if existing_user and not existing_user.is_email_verified:
+                logger.info(f"Deleting unverified user with email: {data['email']}")
                 # Check if the existing user has the same username
                 if existing_user.username == data['username']:
+                    logger.error(f"Username conflict for unverified user: {data['username']}")
                     return Response({
                         'error': 'This username is already associated with an unverified account. Please use a different username or verify your existing account.'
                     }, status=status.HTTP_400_BAD_REQUEST)
@@ -2626,27 +2816,32 @@ def register_view(request):
             # Validate password strength
             password = data['password']
             if len(password) < 8:
+                logger.error("Password too short")
                 return Response({
                     'error': 'Password must be at least 8 characters long.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             if not any(char.isdigit() for char in password):
+                logger.error("Password missing digit")
                 return Response({
                     'error': 'Password must contain at least one number.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             if not any(char.isupper() for char in password):
+                logger.error("Password missing uppercase letter")
                 return Response({
                     'error': 'Password must contain at least one uppercase letter.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             if not any(char.islower() for char in password):
+                logger.error("Password missing lowercase letter")
                 return Response({
                     'error': 'Password must contain at least one lowercase letter.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Check if passwords match
             if data['password'] != data['password2']:
+                logger.error("Passwords do not match")
                 return Response({
                     'error': 'Passwords do not match. Please make sure both password fields are identical.'
                 }, status=status.HTTP_400_BAD_REQUEST)
@@ -2655,9 +2850,11 @@ def register_view(request):
             profile_photo = None
             if 'profile_photo' in request.FILES:
                 profile_photo = request.FILES['profile_photo']
+                logger.info(f"Profile photo received: {profile_photo.name}, Size: {profile_photo.size} bytes")
                 
                 # Validate file size (5MB limit)
                 if profile_photo.size > 5 * 1024 * 1024:
+                    logger.error(f"Profile photo too large: {profile_photo.size} bytes")
                     return Response({
                         'error': 'Profile photo must be less than 5MB.'
                     }, status=status.HTTP_400_BAD_REQUEST)
@@ -2665,14 +2862,19 @@ def register_view(request):
                 # Validate file type
                 allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
                 if profile_photo.content_type not in allowed_types:
+                    logger.error(f"Invalid profile photo type: {profile_photo.content_type}")
                     return Response({
                         'error': 'Invalid image format. Please use JPEG, PNG, GIF, or WebP.'
                     }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                logger.info("No profile photo provided")
             
             # Create the new user using serializer
             serializer = UserRegistrationSerializer(data=data)
             
             if serializer.is_valid():
+                logger.info("User data validation successful")
+                
                 # Create user but set as inactive initially
                 user = serializer.save()
                 user.is_active = False  # User cannot login until email is verified
@@ -2681,6 +2883,7 @@ def register_view(request):
                 # Handle profile photo upload to Cloudinary
                 if profile_photo:
                     try:
+                        logger.info("Attempting Cloudinary upload for profile photo")
                         # Upload to Cloudinary
                         upload_result = cloudinary.uploader.upload(
                             profile_photo,
@@ -2688,20 +2891,21 @@ def register_view(request):
                             resource_type='image'
                         )
                         user.profile_photo = upload_result['secure_url']
-                        print(f"Profile photo uploaded successfully: {upload_result['secure_url']}")
+                        logger.info(f"Profile photo uploaded successfully: {upload_result['secure_url']}")
                     except Exception as e:
                         # Log the error but continue without profile photo
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.error(f"Cloudinary upload error: {str(e)}")
+                        logger.error(f"Cloudinary upload error: {str(e)}", exc_info=True)
                         user.profile_photo = None  # Set to None if upload fails
                 
                 user.save()
+                logger.info(f"User created successfully: {user.username} (ID: {user.id})")
                 
                 # Generate verification token and URL
                 current_site = get_current_site(request)
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 token = account_activation_token.make_token(user)
+                
+                logger.info(f"Generated activation token for user {user.username}")
                 
                 # Create HTML email message
                 mail_subject = 'Activate your MUBAS SOMASE Voting account'
@@ -2809,30 +3013,52 @@ Thank you,
 MUBAS SOMASE Team"""
                 
                 try:
+                    # Log email configuration for debugging
+                    logger.info("=== EMAIL CONFIGURATION DEBUG ===")
+                    logger.info(f"EMAIL_HOST: {settings.EMAIL_HOST}")
+                    logger.info(f"EMAIL_PORT: {settings.EMAIL_PORT}")
+                    logger.info(f"EMAIL_USE_TLS: {settings.EMAIL_USE_TLS}")
+                    logger.info(f"EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
+                    logger.info(f"DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}")
+                    logger.info(f"Recipient: {user.email}")
+                    logger.info("=== END EMAIL CONFIG DEBUG ===")
+                    
+                    logger.info(f"Attempting to send verification email to: {user.email}")
+                    
                     # Create email with both HTML and plain text versions
-                    # Use settings.DEFAULT_FROM_EMAIL which is now set to your Brevo email
                     email = EmailMultiAlternatives(
                         mail_subject,
                         text_content,
-                        settings.DEFAULT_FROM_EMAIL,  # Use from settings (mubassomase@gmail.com)
+                        settings.DEFAULT_FROM_EMAIL,
                         [user.email]
                     )
                     email.attach_alternative(html_content, "text/html")
-                    email.send()
                     
-                    response = Response({
-                        'message': 'Registration successful! Please check your MUBAS email to verify your account. You will be automatically logged in after verification.',
-                        'user_id': user.id,
-                    }, status=status.HTTP_201_CREATED)
+                    # Send email
+                    email_sent = email.send()
+                    logger.info(f"Email send() returned: {email_sent}")
+                    
+                    if email_sent == 1:
+                        logger.info(f"Verification email sent successfully to {user.email}")
+                        response = Response({
+                            'message': 'Registration successful! Please check your MUBAS email to verify your account. You will be automatically logged in after verification.',
+                            'user_id': user.id,
+                        }, status=status.HTTP_201_CREATED)
+                    else:
+                        raise Exception(f"Email send() returned {email_sent}, expected 1")
                     
                 except Exception as e:
-                    # Log the email error
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Brevo email sending error: {str(e)}", exc_info=True)
+                    # Log the email error in detail
+                    logger.error("=== EMAIL SENDING FAILED ===")
+                    logger.error(f"Error type: {type(e).__name__}")
+                    logger.error(f"Error message: {str(e)}")
+                    logger.error("Full traceback:", exc_info=True)
+                    logger.error("=== END EMAIL ERROR ===")
                     
                     # Delete user if email sending fails
                     user.delete()
+                    logger.error(f"Deleted user {user.username} due to email sending failure")
+                    
                     response = Response({
                         'error': 'We encountered an issue sending the verification email. Please try again in a few moments.'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -2844,6 +3070,8 @@ MUBAS SOMASE Team"""
                     for error in errors:
                         error_messages.append(f"{field}: {error}")
                 
+                logger.error(f"Serializer validation errors: {error_messages}")
+                
                 response = Response({
                     'error': 'Please correct the following errors:',
                     'details': error_messages
@@ -2852,13 +3080,16 @@ MUBAS SOMASE Team"""
             # Set CORS headers using settings.FRONTEND_URL
             response['Access-Control-Allow-Origin'] = settings.FRONTEND_URL
             response['Access-Control-Allow-Credentials'] = 'true'
+            logger.info("Registration process completed successfully")
             return response
                 
         except Exception as e:
             # Log the exception for debugging
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Registration error: {str(e)}", exc_info=True)
+            logger.error("=== REGISTRATION PROCESS FAILED ===")
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Error message: {str(e)}")
+            logger.error("Full traceback:", exc_info=True)
+            logger.error("=== END REGISTRATION ERROR ===")
             
             response = Response({
                 'error': 'An unexpected error occurred during registration. Please try again later.'
