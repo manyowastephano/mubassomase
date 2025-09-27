@@ -3052,102 +3052,6 @@ MUBAS SOMASE Team"""
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
 
-# Additional endpoint for email configuration testing
-@api_view(['GET', 'POST'])
-@permission_classes([permissions.AllowAny])
-@csrf_exempt
-def test_email_configuration(request):
-    """
-    Endpoint to test email configuration (for admin debugging)
-    """
-    from django.core.mail import send_mail
-    from django.conf import settings
-    import smtplib
-    
-    test_results = {
-        'smtp_connection': False,
-        'smtp_authentication': False,
-        'email_send': False,
-        'details': [],
-        'config': {
-            'host': settings.EMAIL_HOST,
-            'port': settings.EMAIL_PORT,
-            'use_tls': settings.EMAIL_USE_TLS,
-            'user': settings.EMAIL_HOST_USER,
-            'from_email': settings.DEFAULT_FROM_EMAIL,
-            'timeout': 15
-        }
-    }
-    
-    try:
-        # Test 1: SMTP Connection
-        logger.info("Testing SMTP connection...")
-        if settings.EMAIL_USE_TLS:
-            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=15)
-            server.starttls()
-        else:
-            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=15)
-        
-        test_results['smtp_connection'] = True
-        test_results['details'].append("✓ SMTP connection successful")
-        
-        # Test 2: SMTP Authentication
-        logger.info("Testing SMTP authentication...")
-        server.login(settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)
-        test_results['smtp_authentication'] = True
-        test_results['details'].append("✓ SMTP authentication successful")
-        server.quit()
-        
-        # Test 3: Send Test Email
-        logger.info("Testing email send...")
-        send_mail(
-            'MUBAS SOMASE - Email Configuration Test',
-            'This is a test email from your MUBAS SOMASE application.\n\nIf you received this, your email configuration is working correctly.',
-            settings.DEFAULT_FROM_EMAIL,
-            [settings.DEFAULT_FROM_EMAIL],  # Send to yourself
-            fail_silently=False,
-        )
-        test_results['email_send'] = True
-        test_results['details'].append("✓ Test email sent successfully")
-        
-        return Response({
-            'success': True,
-            'message': 'Email configuration test passed',
-            'results': test_results
-        })
-        
-    except smtplib.SMTPConnectError as e:
-        test_results['details'].append(f"✗ SMTP Connection Failed: {str(e)}")
-        return Response({
-            'success': False,
-            'error': 'Cannot connect to SMTP server. Check host and port.',
-            'results': test_results
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-    except smtplib.SMTPAuthenticationError as e:
-        test_results['details'].append(f"✗ SMTP Authentication Failed: {str(e)}")
-        return Response({
-            'success': False,
-            'error': 'SMTP authentication failed. Check username and password.',
-            'results': test_results
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-    except smtplib.SMTPException as e:
-        test_results['details'].append(f"✗ SMTP Error: {str(e)}")
-        return Response({
-            'success': False,
-            'error': 'SMTP error occurred during testing.',
-            'results': test_results
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-    except Exception as e:
-        test_results['details'].append(f"✗ Unexpected Error: {str(e)}")
-        return Response({
-            'success': False,
-            'error': 'Unexpected error during email test.',
-            'results': test_results
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-# In your Django views.py
 @api_view(['DELETE'])
 @login_required
 def delete_user_account(request):
@@ -3157,87 +3061,101 @@ def delete_user_account(request):
         return Response({'message': 'Account deleted successfully'}, status=200)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
+ 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
-def test_email_config(request):
+@csrf_exempt
+def test_brevo_email(request):
     """
-    Endpoint to test email configuration (for admin use)
+    Test Brevo email configuration directly
     """
-    from django.core.mail import send_mail
-    from django.conf import settings
     import smtplib
-    import logging
-    
-    logger = logging.getLogger(__name__)
-    
-    test_results = {
-        'smtp_connection': False,
-        'smtp_authentication': False,
-        'email_send': False,
-        'details': []
-    }
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from django.conf import settings
     
     try:
-        # Test 1: SMTP Connection
-        logger.info("Testing SMTP connection...")
+        # Test data
+        test_email = request.data.get('email', settings.DEFAULT_FROM_EMAIL)
+        
+        # Create message
+        message = MIMEMultipart("alternative")
+        message["Subject"] = "Brevo SMTP Test from Render"
+        message["From"] = settings.DEFAULT_FROM_EMAIL
+        message["To"] = test_email
+        
+        # Create HTML version
+        html = f"""
+        <html>
+          <body>
+            <h2>Brevo SMTP Test</h2>
+            <p>This is a test email sent from your Django app on Render.</p>
+            <p>If you receive this, your Brevo configuration is working correctly.</p>
+            <p>Time: {timezone.now()}</p>
+          </body>
+        </html>
+        """
+        
+        # Add HTML part
+        message.attach(MIMEText(html, "html"))
+        
+        # Try to send
         if settings.EMAIL_USE_TLS:
-            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=10)
+            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=30)
             server.starttls()
         else:
-            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=10)
+            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=30)
         
-        test_results['smtp_connection'] = True
-        test_results['details'].append("SMTP connection successful")
-        
-        # Test 2: SMTP Authentication
-        logger.info("Testing SMTP authentication...")
         server.login(settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)
-        test_results['smtp_authentication'] = True
-        test_results['details'].append("SMTP authentication successful")
+        server.send_message(message)
         server.quit()
         
-        # Test 3: Send Test Email
-        logger.info("Testing email send...")
+        return Response({
+            'success': True,
+            'message': f'Test email sent successfully to {test_email}'
+        })
+        
+    except smtplib.SMTPAuthenticationError as e:
+        return Response({
+            'success': False,
+            'error': 'SMTP Authentication failed',
+            'details': str(e),
+            'config': {
+                'host': settings.EMAIL_HOST,
+                'port': settings.EMAIL_PORT,
+                'username': settings.EMAIL_HOST_USER,
+                'password_set': bool(settings.EMAIL_HOST_PASSWORD)
+            }
+        }, status=500)
+        
+    except smtplib.SMTPException as e:
+        return Response({
+            'success': False,
+            'error': 'SMTP Error',
+            'details': str(e)
+        }, status=500)
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': 'Unexpected error',
+            'details': str(e)
+        }, status=500)
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def test_simple_email(request):
+    """Simple email test"""
+    from django.core.mail import send_mail
+    from django.conf import settings
+    
+    try:
         send_mail(
-            'MUBAS SOMASE - Email Test',
-            'This is a test email from your MUBAS SOMASE application.',
+            'Test from Render + Brevo',
+            'If you receive this, your email configuration is working!',
             settings.DEFAULT_FROM_EMAIL,
             [settings.DEFAULT_FROM_EMAIL],  # Send to yourself
             fail_silently=False,
         )
-        test_results['email_send'] = True
-        test_results['details'].append("Test email sent successfully")
-        
-        return Response({
-            'success': True,
-            'results': test_results,
-            'config': {
-                'host': settings.EMAIL_HOST,
-                'port': settings.EMAIL_PORT,
-                'use_tls': settings.EMAIL_USE_TLS,
-                'user': settings.EMAIL_HOST_USER,
-                'from_email': settings.DEFAULT_FROM_EMAIL
-            }
-        })
-        
-    except smtplib.SMTPConnectError as e:
-        test_results['details'].append(f"SMTP Connection Failed: {str(e)}")
-        return Response({
-            'success': False,
-            'error': 'Cannot connect to SMTP server',
-            'results': test_results
-        }, status=500)
-    except smtplib.SMTPAuthenticationError as e:
-        test_results['details'].append(f"SMTP Authentication Failed: {str(e)}")
-        return Response({
-            'success': False,
-            'error': 'SMTP authentication failed',
-            'results': test_results
-        }, status=500)
+        return Response({'success': True, 'message': 'Test email sent'})
     except Exception as e:
-        test_results['details'].append(f"Unexpected error: {str(e)}")
-        return Response({
-            'success': False,
-            'error': 'Email test failed',
-            'results': test_results
-        }, status=500)
+        return Response({'success': False, 'error': str(e)})
