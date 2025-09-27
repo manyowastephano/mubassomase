@@ -32,7 +32,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'cloudinary',
     'cloudinary_storage',
-    'django_apscheduler',
+    
     'django.contrib.admin',
 ]
 
