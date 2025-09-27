@@ -2554,60 +2554,42 @@ def activate_account(request, uidb64, token):
         """
         
         return HttpResponse(html_content, content_type='text/html')
+    
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
 @csrf_exempt
 def register_view(request):
-    """
-    User registration view with comprehensive error handling and logging
-    """
-    frontend_url = get_frontend_url()
-    
-    # Logger setup
-    import logging
-    logger = logging.getLogger(__name__)
+    # Import settings at the top of your views.py if not already done
+    from django.conf import settings
     
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = Response()
-        response['Access-Control-Allow-Origin'] = frontend_url
+        response['Access-Control-Allow-Origin'] = settings.FRONTEND_URL
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
         response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
         return response
         
     if request.method == 'POST':
-        logger.info("Registration request received")
-        
         try:
-            # Log request details for debugging
-            logger.info(f"Content-Type: {request.content_type}")
-            logger.info(f"Request data keys: {list(request.data.keys()) if hasattr(request.data, 'keys') else 'N/A'}")
-            
             # For file uploads, use request.data directly
             if request.content_type.startswith('multipart/form-data'):
                 data = request.data
-                logger.info("Processing multipart/form-data request")
             else:
                 # For JSON requests
                 try:
                     data = json.loads(request.body)
-                    logger.info("Processing JSON request")
-                except json.JSONDecodeError as json_error:
-                    logger.error(f"JSON decode error: {str(json_error)}")
+                except json.JSONDecodeError:
                     return Response({
                         'error': 'Invalid request format. Please check your input and try again.'
                     }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Log registration attempt
-            logger.info(f"Registration attempt for email: {data.get('email', 'Not provided')}, username: {data.get('username', 'Not provided')}")
             
             # Validate required fields
             required_fields = ['username', 'email', 'password', 'password2']
             missing_fields = [field for field in required_fields if field not in data]
             
             if missing_fields:
-                logger.warning(f"Missing required fields: {missing_fields}")
                 return Response({
                     'error': f'Missing required fields: {", ".join(missing_fields)}'
                 }, status=status.HTTP_400_BAD_REQUEST)
@@ -2615,7 +2597,6 @@ def register_view(request):
             # Check if email matches the required MUBAS format
             email_pattern = r'^mse\d{2}-.*@mubas\.ac\.mw$'
             if not re.match(email_pattern, data['email']):
-                logger.warning(f"Invalid email format: {data['email']}")
                 return Response({
                     'error': 'Only MUBAS SOMASE student emails (format: mseYY-username@mubas.ac.mw) are allowed for registration. Please use your official MUBAS email.'
                 }, status=status.HTTP_400_BAD_REQUEST)
@@ -2623,56 +2604,49 @@ def register_view(request):
             # Check if email already exists and is verified
             existing_user = CustomUser.objects.filter(email=data['email']).first()
             if existing_user and existing_user.is_email_verified:
-                logger.warning(f"Email already registered and verified: {data['email']}")
                 return Response({
                     'error': 'This email is already registered. Please try logging in or use a different email.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Check if username already exists
             if CustomUser.objects.filter(username=data['username']).exists():
-                logger.warning(f"Username already taken: {data['username']}")
                 return Response({
                     'error': 'This username is already taken. Please choose a different username.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # If email exists but is not verified, delete the old user
             if existing_user and not existing_user.is_email_verified:
-                logger.info(f"Deleting unverified user with email: {data['email']}")
                 # Check if the existing user has the same username
                 if existing_user.username == data['username']:
-                    logger.warning(f"Username conflict for unverified user: {data['username']}")
                     return Response({
                         'error': 'This username is already associated with an unverified account. Please use a different username or verify your existing account.'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 existing_user.delete()
-                logger.info("Unverified user deleted successfully")
             
             # Validate password strength
             password = data['password']
-            password_errors = []
-            
             if len(password) < 8:
-                password_errors.append('Password must be at least 8 characters long.')
+                return Response({
+                    'error': 'Password must be at least 8 characters long.'
+                }, status=status.HTTP_400_BAD_REQUEST)
             
             if not any(char.isdigit() for char in password):
-                password_errors.append('Password must contain at least one number.')
+                return Response({
+                    'error': 'Password must contain at least one number.'
+                }, status=status.HTTP_400_BAD_REQUEST)
             
             if not any(char.isupper() for char in password):
-                password_errors.append('Password must contain at least one uppercase letter.')
+                return Response({
+                    'error': 'Password must contain at least one uppercase letter.'
+                }, status=status.HTTP_400_BAD_REQUEST)
             
             if not any(char.islower() for char in password):
-                password_errors.append('Password must contain at least one lowercase letter.')
-            
-            if password_errors:
-                logger.warning(f"Password validation failed: {password_errors}")
                 return Response({
-                    'error': 'Password does not meet requirements.',
-                    'details': password_errors
+                    'error': 'Password must contain at least one lowercase letter.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Check if passwords match
             if data['password'] != data['password2']:
-                logger.warning("Passwords do not match")
                 return Response({
                     'error': 'Passwords do not match. Please make sure both password fields are identical.'
                 }, status=status.HTTP_400_BAD_REQUEST)
@@ -2681,11 +2655,9 @@ def register_view(request):
             profile_photo = None
             if 'profile_photo' in request.FILES:
                 profile_photo = request.FILES['profile_photo']
-                logger.info(f"Profile photo provided: {profile_photo.name}, size: {profile_photo.size} bytes")
                 
                 # Validate file size (5MB limit)
                 if profile_photo.size > 5 * 1024 * 1024:
-                    logger.warning(f"Profile photo too large: {profile_photo.size} bytes")
                     return Response({
                         'error': 'Profile photo must be less than 5MB.'
                     }, status=status.HTTP_400_BAD_REQUEST)
@@ -2693,231 +2665,176 @@ def register_view(request):
                 # Validate file type
                 allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
                 if profile_photo.content_type not in allowed_types:
-                    logger.warning(f"Invalid profile photo type: {profile_photo.content_type}")
                     return Response({
                         'error': 'Invalid image format. Please use JPEG, PNG, GIF, or WebP.'
                     }, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                logger.info("No profile photo provided")
             
             # Create the new user using serializer
             serializer = UserRegistrationSerializer(data=data)
             
             if serializer.is_valid():
-                logger.info("User data validation successful")
+                # Create user but set as inactive initially
+                user = serializer.save()
+                user.is_active = False  # User cannot login until email is verified
+                user.is_email_verified = False
                 
-                try:
-                    # Create user but set as inactive initially
-                    user = serializer.save()
-                    user.is_active = False  # User cannot login until email is verified
-                    user.is_email_verified = False
-                    logger.info(f"User object created with ID: {user.id}")
-                    
-                    # Handle profile photo upload to Cloudinary
-                    if profile_photo:
-                        try:
-                            logger.info("Starting Cloudinary upload...")
-                            # Upload to Cloudinary
-                            upload_result = cloudinary.uploader.upload(
-                                profile_photo,
-                                folder='voting_app/profiles/',
-                                resource_type='image'
-                            )
-                            user.profile_photo = upload_result['secure_url']
-                            logger.info(f"Profile photo uploaded successfully: {upload_result['secure_url']}")
-                        except Exception as cloudinary_error:
-                            # Log the error but continue without profile photo
-                            logger.error(f"Cloudinary upload error: {str(cloudinary_error)}", exc_info=True)
-                            user.profile_photo = None  # Set to None if upload fails
-                            logger.info("Continuing without profile photo due to upload error")
-                    
-                    user.save()
-                    logger.info("User saved to database")
-                    
-                    # Generate verification token and URL
-                    current_site = get_current_site(request)
-                    uid = urlsafe_base64_encode(force_bytes(user.pk))
-                    token = account_activation_token.make_token(user)
-                    logger.info("Verification token generated successfully")
-                    
-                    # Create HTML email message
-                    mail_subject = 'Activate your MUBAS SOMASE Voting account'
-                    
-                    # HTML content with styling
-                    html_content = f"""
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Email Verification</title>
-                        <style>
-                            body {{
-                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                                line-height: 1.6;
-                                color: #333;
-                                background-color: #f9f9f9;
-                                margin: 0;
-                                padding: 0;
-                            }}
-                            .container {{
-                                max-width: 600px;
-                                margin: 0 auto;
-                                background-color: #ffffff;
-                                padding: 20px;
-                                border-radius: 8px;
-                                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                            }}
-                            .header {{
-                                text-align: center;
-                                padding: 20px 0;
-                                background-color: #1e4a76;
-                                color: white;
-                                border-radius: 8px 8px 0 0;
-                            }}
-                            .content {{
-                                padding: 20px;
-                            }}
-                            .button {{
-                                display: inline-block;
-                                padding: 12px 24px;
-                                background-color: #1e4a76;
-                                color: white;
-                                text-decoration: none;
-                                border-radius: 4px;
-                                margin: 20px 0;
-                                font-weight: bold;
-                            }}
-                            .footer {{
-                                text-align: center;
-                                padding: 20px;
-                                font-size: 12px;
-                                color: #666;
-                            }}
-                            .verification-link {{
-                                word-break: break-all;
-                                color:#1e4a76;
-                                font-weight: bold;
-                            }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="container">
-                            <div class="header">
-                                <h1>MUBAS SOMASE</h1>
-                                <h2>Email Verification</h2>
-                            </div>
-                            <div class="content">
-                                <h2>Hello {user.username},</h2>
-                                <p>Thank you for registering as a MUBAS SOMASE member. To complete your registration, please verify your email address by clicking the button below:</p>
-                                
-                                <center>
-                                    <a style="color:white" href="{frontend_url}/activate/{uid}/{token}" class="button">
-                                        Verify Email Address
-                                    </a>
-                                </center>
-                                
-                                <p>Or copy and paste the following link into your browser:</p>
-                                <p class="verification-link">{frontend_url}/activate/{uid}/{token}/</p>
-                                
-                                <p>If you didn't request this registration, please ignore this email.</p>
-                                
-                                <p>Best regards,<br>The MUBAS SOMASE Team</p>
-                            </div>
-                            <div class="footer">
-                                <p>This is an automated message. Please do not reply to this email.</p>
-                                <p>&copy; {timezone.now().year} SOMASE Voting System. All rights reserved.</p>
-                            </div>
+                # Handle profile photo upload to Cloudinary
+                if profile_photo:
+                    try:
+                        # Upload to Cloudinary
+                        upload_result = cloudinary.uploader.upload(
+                            profile_photo,
+                            folder='voting_app/profiles/',
+                            resource_type='image'
+                        )
+                        user.profile_photo = upload_result['secure_url']
+                        print(f"Profile photo uploaded successfully: {upload_result['secure_url']}")
+                    except Exception as e:
+                        # Log the error but continue without profile photo
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Cloudinary upload error: {str(e)}")
+                        user.profile_photo = None  # Set to None if upload fails
+                
+                user.save()
+                
+                # Generate verification token and URL
+                current_site = get_current_site(request)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = account_activation_token.make_token(user)
+                
+                # Create HTML email message
+                mail_subject = 'Activate your MUBAS SOMASE Voting account'
+                
+                # HTML content with styling
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Email Verification</title>
+                    <style>
+                        body {{
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            background-color: #f9f9f9;
+                            margin: 0;
+                            padding: 0;
+                        }}
+                        .container {{
+                            max-width: 600px;
+                            margin: 0 auto;
+                            background-color: #ffffff;
+                            padding: 20px;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        }}
+                        .header {{
+                            text-align: center;
+                            padding: 20px 0;
+                            background-color: #1e4a76;
+                            color: white;
+                            border-radius: 8px 8px 0 0;
+                        }}
+                        .content {{
+                            padding: 20px;
+                        }}
+                        .button {{
+                            display: inline-block;
+                            padding: 12px 24px;
+                            background-color: #1e4a76;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 4px;
+                            margin: 20px 0;
+                            font-weight: bold;
+                        }}
+                        .footer {{
+                            text-align: center;
+                            padding: 20px;
+                            font-size: 12px;
+                            color: #666;
+                        }}
+                        .verification-link {{
+                            word-break: break-all;
+                            color:#1e4a76;
+                            font-weight: bold;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>MUBAS SOMASE</h1>
+                             <h2>Email Verification</h2>
                         </div>
-                    </body>
-                    </html>
-                    """
-                    
-                    # Plain text version for email clients that don't support HTML
-                    text_content = f"""Hi {user.username},
+                        <div class="content">
+                            <h2>Hello {user.username},</h2>
+                            <p>Thank you for registering as a MUBAS SOMASE member. To complete your registration, please verify your email address by clicking the button below:</p>
+                            
+                            <center>
+                                <a style="color:white" href="{settings.FRONTEND_URL}/activate/{uid}/{token}" class="button">
+                                    Verify Email Address
+                                </a>
+                            </center>
+                            
+                            <p>Or copy and paste the following link into your browser:</p>
+                            <p class="verification-link">{settings.FRONTEND_URL}/activate/{uid}/{token}</p>
+                            
+                            <p>If you didn't request this registration, please ignore this email.</p>
+                            
+                            <p>Best regards,<br>The MUBAS SOMASE Team</p>
+                        </div>
+                        <div class="footer">
+                            <p>This is an automated message. Please do not reply to this email.</p>
+                            <p>&copy; {timezone.now().year} SOMASE Voting System. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                # Plain text version for email clients that don't support HTML
+                text_content = f"""Hi {user.username},
 
 Please click on the link below to confirm your registration for the SOMASE Voting System:
 
-{frontend_url}/activate/{uid}/{token}/
+{settings.FRONTEND_URL}/activate/{uid}/{token}
 
 If you didn't register for this account, please ignore this email.
 
 Thank you,
 MUBAS SOMASE Team"""
+                
+                try:
+                    # Create email with both HTML and plain text versions
+                    # Use settings.DEFAULT_FROM_EMAIL which is now set to your Brevo email
+                    email = EmailMultiAlternatives(
+                        mail_subject,
+                        text_content,
+                        settings.DEFAULT_FROM_EMAIL,  # Use from settings (mubassomase@gmail.com)
+                        [user.email]
+                    )
+                    email.attach_alternative(html_content, "text/html")
+                    email.send()
                     
-                    # Email sending with comprehensive error handling
-                    logger.info(f"Attempting to send verification email to: {user.email}")
-                    
-                    try:
-                        # Use settings for email configuration
-                        from django.conf import settings
-                        
-                        # Create email with both HTML and plain text versions
-                        email = EmailMultiAlternatives(
-                            mail_subject,
-                            text_content,
-                            settings.DEFAULT_FROM_EMAIL,  # Use from settings
-                            [user.email],
-                            connection=None  # Let Django handle the connection
-                        )
-                        email.attach_alternative(html_content, "text/html")
-                        
-                        # Test email settings before sending
-                        logger.info(f"Email settings - Host: {settings.EMAIL_HOST}, Port: {settings.EMAIL_PORT}, User: {settings.EMAIL_HOST_USER}")
-                        logger.info(f"Using FROM email: {settings.DEFAULT_FROM_EMAIL}")
-                        
-                        # Send email with timeout
-                        email.send(fail_silently=False)
-                        
-                        logger.info(f"Verification email sent successfully to {user.email}")
-                        
-                        # Create audit log for successful registration
-                        create_audit_log(
-                            user,
-                            'user_registration',
-                            f"User registered successfully - verification email sent to {user.email}"
-                        )
-                        
-                        response = Response({
-                            'message': 'Registration successful! Please check your MUBAS email to verify your account. You will be automatically logged in after verification.',
-                            'user_id': user.id,
-                        }, status=status.HTTP_201_CREATED)
-                        
-                    except Exception as email_error:
-                        # Comprehensive email error handling
-                        error_message = str(email_error)
-                        logger.error(f"EMAIL SENDING FAILED - Error: {error_message}", exc_info=True)
-                        
-                        # Determine specific error type
-                        if "authentication" in error_message.lower():
-                            detailed_error = "Email server authentication failed. This is usually due to incorrect email credentials."
-                            logger.error("SMTP Authentication failed - check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD")
-                        elif "connection refused" in error_message.lower():
-                            detailed_error = "Unable to connect to email server. The server may be down or network issues exist."
-                            logger.error("Connection refused - check EMAIL_HOST and EMAIL_PORT")
-                        elif "timeout" in error_message.lower():
-                            detailed_error = "Email server connection timeout. Please try again later."
-                            logger.error("SMTP timeout occurred")
-                        elif "ssl" in error_message.lower():
-                            detailed_error = "SSL/TLS connection issue with email server."
-                            logger.error("SSL/TLS error with email server")
-                        else:
-                            detailed_error = "We encountered an issue sending the verification email. Please try again in a few moments."
-                        
-                        # Delete user if email sending fails
-                        logger.info(f"Deleting user {user.id} due to email sending failure")
-                        user.delete()
-                        
-                        response = Response({
-                            'error': 'Email verification failed',
-                            'details': detailed_error,
-                            'technical_info': 'Our team has been notified. Please try again later or contact support if the problem persists.'
-                        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                        
-                except Exception as user_creation_error:
-                    logger.error(f"User creation error: {str(user_creation_error)}", exc_info=True)
                     response = Response({
-                        'error': 'An error occurred during user creation. Please try again.'
+                        'message': 'Registration successful! Please check your MUBAS email to verify your account. You will be automatically logged in after verification.',
+                        'user_id': user.id,
+                    }, status=status.HTTP_201_CREATED)
+                    
+                except Exception as e:
+                    # Log the email error
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Brevo email sending error: {str(e)}", exc_info=True)
+                    
+                    # Delete user if email sending fails
+                    user.delete()
+                    response = Response({
+                        'error': 'We encountered an issue sending the verification email. Please try again in a few moments.'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                     
             else:
@@ -2927,122 +2844,37 @@ MUBAS SOMASE Team"""
                     for error in errors:
                         error_messages.append(f"{field}: {error}")
                 
-                logger.warning(f"Serializer validation errors: {error_messages}")
-                
                 response = Response({
                     'error': 'Please correct the following errors:',
                     'details': error_messages
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
-            # Set CORS headers
-            response['Access-Control-Allow-Origin'] = frontend_url
+            # Set CORS headers using settings.FRONTEND_URL
+            response['Access-Control-Allow-Origin'] = settings.FRONTEND_URL
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
                 
         except Exception as e:
             # Log the exception for debugging
-            logger.error(f"UNEXPECTED REGISTRATION ERROR: {str(e)}", exc_info=True)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Registration error: {str(e)}", exc_info=True)
             
             response = Response({
-                'error': 'An unexpected error occurred during registration. Please try again later.',
-                'support_info': 'If this problem continues, please contact support with the time of this error.'
+                'error': 'An unexpected error occurred during registration. Please try again later.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             # Set CORS headers
-            response['Access-Control-Allow-Origin'] = frontend_url
+            response['Access-Control-Allow-Origin'] = settings.FRONTEND_URL
             response['Access-Control-Allow-Credentials'] = 'true'
             return response
-
-
-# Add this test endpoint to diagnose email issues
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-@csrf_exempt
-def test_email_configuration(request):
-    """
-    Test endpoint to diagnose email configuration issues
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    from django.core.mail import send_mail
-    from django.conf import settings
-    
-    test_email = request.data.get('email', 'mubassomase@gmail.com')
-    
-    logger.info("=== EMAIL CONFIGURATION TEST ===")
-    logger.info(f"EMAIL_HOST: {settings.EMAIL_HOST}")
-    logger.info(f"EMAIL_PORT: {settings.EMAIL_PORT}")
-    logger.info(f"EMAIL_USE_TLS: {settings.EMAIL_USE_TLS}")
-    logger.info(f"EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
-    logger.info(f"DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}")
-    
-    try:
-        send_mail(
-            'SOMASE Voting System - Test Email',
-            'This is a test email to verify SMTP configuration is working correctly.',
-            settings.DEFAULT_FROM_EMAIL,
-            [test_email],
-            fail_silently=False,
-        )
-        
-        logger.info("✓ Test email sent successfully")
-        return Response({
-            'status': 'success',
-            'message': f'Test email sent successfully to {test_email}'
-        })
-        
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"✗ Test email failed: {error_msg}", exc_info=True)
-        
-        # Provide specific guidance based on error type
-        if "authentication" in error_msg.lower():
-            guidance = "Check your EMAIL_HOST_PASSWORD (App Password) and ensure 2FA is enabled"
-        elif "connection refused" in error_msg.lower():
-            guidance = "Check EMAIL_HOST and EMAIL_PORT. Gmail should be smtp.gmail.com:587"
-        elif "timeout" in error_msg.lower():
-            guidance = "Network issue. Check firewall settings or try again later"
-        else:
-            guidance = "Check all email settings in environment variables"
-        
-        return Response({
-            'status': 'error',
-            'error': error_msg,
-            'guidance': guidance,
-            'settings_used': {
-                'host': settings.EMAIL_HOST,
-                'port': settings.EMAIL_PORT,
-                'username': settings.EMAIL_HOST_USER,
-                'from_email': settings.DEFAULT_FROM_EMAIL
-            }
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
+# In your Django views.py
 @api_view(['DELETE'])
 @login_required
 def delete_user_account(request):
-    """
-    Delete user account endpoint
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-    
     try:
         user = request.user
-        user_email = user.email
-        user_id = user.id
-        
         user.delete()
-        
-        logger.info(f"User account deleted - ID: {user_id}, Email: {user_email}")
-        
-        return Response({
-            'message': 'Account deleted successfully'
-        }, status=status.HTTP_200_OK)
-        
+        return Response({'message': 'Account deleted successfully'}, status=200)
     except Exception as e:
-        logger.error(f"Account deletion error: {str(e)}", exc_info=True)
-        return Response({
-            'error': f'Account deletion failed: {str(e)}'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': str(e)}, status=400)
