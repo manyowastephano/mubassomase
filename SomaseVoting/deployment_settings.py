@@ -121,8 +121,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.environ.get('BREVO_SMTP_USER')  # Fixed: Map to Django expected variable
-EMAIL_HOST_PASSWORD = os.environ.get('BREVO_SMTP_KEY')  # Fixed: Map to Django expected variable
+EMAIL_HOST_USER = os.environ.get('BREVO_SMTP_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('BREVO_SMTP_KEY')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'mubassomase@gmail.com')
 SERVER_EMAIL = os.environ.get('SERVER_EMAIL', 'mubassomase@gmail.com')
 
@@ -145,3 +145,9 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
+# Production logging adjustments (override only what's necessary)
+LOGGING['handlers']['console']['filters'] = []  # Show console logs in production too
+LOGGING['handlers']['production_file']['level'] = 'INFO'
+LOGGING['loggers']['vottingapp']['level'] = 'INFO'
+LOGGING['loggers']['vottingapp.views']['level'] = 'INFO'
