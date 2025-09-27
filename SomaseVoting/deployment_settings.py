@@ -117,46 +117,18 @@ CSRF_COOKIE_DOMAIN = None
 CSRF_USE_SESSIONS = True
 
 
-# deployment_settings.py - Add this to your email configuration section
-
-# Enhanced Email configuration for Brevo
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
-
-# Brevo SMTP authentication
-BREVO_SMTP_USER = os.environ.get('BREVO_SMTP_USER')
-BREVO_SMTP_KEY = os.environ.get('BREVO_SMTP_KEY')
-
-# Use API key as username and password for Brevo
-EMAIL_HOST_USER = BREVO_SMTP_USER
-EMAIL_HOST_PASSWORD = BREVO_SMTP_KEY
-
+MAILJET_API_KEY = os.environ.get('MAILJET_API_KEY')
+MAILJET_API_SECRET = os.environ.get('MAILJET_API_SECRET')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'mubassomase@gmail.com')
 SERVER_EMAIL = os.environ.get('SERVER_EMAIL', 'mubassomase@gmail.com')
 
-# Enhanced email settings for Render
-EMAIL_TIMEOUT = 30
-EMAIL_SSL_KEYFILE = None
-EMAIL_SSL_CERTFILE = None
 
-# For Brevo, sometimes you need to use the full email as username
-if BREVO_SMTP_USER and '@' not in BREVO_SMTP_USER:
-    # If it's just the username, append the domain
-    EMAIL_HOST_USER = BREVO_SMTP_USER
-
-print("=== EMAIL CONFIGURATION DEBUG ===")
-print(f"EMAIL_HOST: {EMAIL_HOST}")
-print(f"EMAIL_PORT: {EMAIL_PORT}")
-print(f"EMAIL_USE_TLS: {EMAIL_USE_TLS}")
-print(f"EMAIL_USE_SSL: {EMAIL_USE_SSL}")
-print(f"EMAIL_HOST_USER: {EMAIL_HOST_USER}")
-print(f"EMAIL_HOST_PASSWORD: {'*' * len(EMAIL_HOST_PASSWORD) if EMAIL_HOST_PASSWORD else 'None'}")
+print("=== MAILJET API CONFIGURATION DEBUG ===")
+print(f"MAILJET_API_KEY set: {bool(MAILJET_API_KEY)}")
+print(f"MAILJET_API_SECRET set: {bool(MAILJET_API_SECRET)}")
 print(f"DEFAULT_FROM_EMAIL: {DEFAULT_FROM_EMAIL}")
-print(f"BREVO_SMTP_USER set: {bool(BREVO_SMTP_USER)}")
-print(f"BREVO_SMTP_KEY set: {bool(BREVO_SMTP_KEY)}")
+print(f"FRONTEND_URL: {FRONTEND_URL}")
+
 
 CORS_ALLOW_HEADERS = [
     'accept',

@@ -173,18 +173,14 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-# Email configuration for Brevo
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp-relay.brevo.com'
-EMAIL_PORT = 587  # Fixed: Correct port for Brevo
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('BREVO_SMTP_USER', 'mubassomase@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('BREVO_SMTP_KEY')
+
+MAILJET_API_KEY = os.environ.get('MAILJET_API_KEY')
+MAILJET_API_SECRET = os.environ.get('MAILJET_API_SECRET')
+
+# Default sender email (must be verified in Mailjet)
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'mubassomase@gmail.com')
 SERVER_EMAIL = os.environ.get('SERVER_EMAIL', 'mubassomase@gmail.com')
 
-# Email timeout settings
-EMAIL_TIMEOUT = 30  # seconds
 
 # Frontend URL for email verification links
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')

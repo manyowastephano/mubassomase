@@ -43,6 +43,9 @@ import cloudinary.uploader
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 
+
+
+
 def get_frontend_url():
     """
     Returns the appropriate frontend URL based on environment
@@ -2733,14 +2736,12 @@ def activate_account(request, uidb64, token):
         
         return HttpResponse(html_content, content_type='text/html')
 
-
-logger = logging.getLogger(__name__)
-
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
 @csrf_exempt
 def register_view(request):
     from django.conf import settings
+    from .email_utils import send_verification_email
     
     if request.method == 'OPTIONS':
         response = Response()
@@ -2811,211 +2812,32 @@ def register_view(request):
                 user.save()
                 
                 # Generate verification token and URL
-                current_site = get_current_site(request)
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 token = account_activation_token.make_token(user)
                 
-                # Create HTML email message
-                mail_subject = 'Activate your MUBAS SOMASE Voting account'
+                # Send email using Mailjet API
+                logger.info(f"Attempting to send verification email to {user.email}")
+                email_sent = send_verification_email(user.email, user.username, uid, token)
                 
-                # HTML content with styling
-                html_content = f"""
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Email Verification</title>
-                    <style>
-                        body {{
-                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                            line-height: 1.6;
-                            color: #333;
-                            background-color: #f9f9f9;
-                            margin: 0;
-                            padding: 0;
-                        }}
-                        .container {{
-                            max-width: 600px;
-                            margin: 0 auto;
-                            background-color: #ffffff;
-                            padding: 20px;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                        }}
-                        .header {{
-                            text-align: center;
-                            padding: 20px 0;
-                            background-color: #1e4a76;
-                            color: white;
-                            border-radius: 8px 8px 0 0;
-                        }}
-                        .content {{
-                            padding: 20px;
-                        }}
-                        .button {{
-                            display: inline-block;
-                            padding: 12px 24px;
-                            background-color: #1e4a76;
-                            color: white;
-                            text-decoration: none;
-                            border-radius: 4px;
-                            margin: 20px 0;
-                            font-weight: bold;
-                        }}
-                        .footer {{
-                            text-align: center;
-                            padding: 20px;
-                            font-size: 12px;
-                            color: #666;
-                        }}
-                        .verification-link {{
-                            word-break: break-all;
-                            color:#1e4a76;
-                            font-weight: bold;
-                        }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1>MUBAS SOMASE</h1>
-                             <h2>Email Verification</h2>
-                        </div>
-                        <div class="content">
-                            <h2>Hello {user.username},</h2>
-                            <p>Thank you for registering as a MUBAS SOMASE member. To complete your registration, please verify your email address by clicking the button below:</p>
-                            
-                            <center>
-                                <a style="color:white" href="{settings.FRONTEND_URL}/activate/{uid}/{token}" class="button">
-                                    Verify Email Address
-                                </a>
-                            </center>
-                            
-                            <p>Or copy and paste the following link into your browser:</p>
-                            <p class="verification-link">{settings.FRONTEND_URL}/activate/{uid}/{token}</p>
-                            
-                            <p>If you didn't request this registration, please ignore this email.</p>
-                            
-                            <p>Best regards,<br>The MUBAS SOMASE Team</p>
-                        </div>
-                        <div class="footer">
-                            <p>This is an automated message. Please do not reply to this email.</p>
-                            <p>&copy; {timezone.now().year} SOMASE Voting System. All rights reserved.</p>
-                        </div>
-                    </div>
-                </body>
-                </html>
-                """
-                
-                # Plain text version
-                text_content = f"""Hi {user.username},
-
-Please click on the link below to confirm your registration for the SOMASE Voting System:
-
-{settings.FRONTEND_URL}/activate/{uid}/{token}
-
-If you didn't register for this account, please ignore this email.
-
-Thank you,
-MUBAS SOMASE Team"""
-                
-                # Enhanced email sending with detailed error handling
-                try:
-                    # Log email configuration (without password)
-                    logger.info(f"Attempting to send verification email to {user.email}")
-                    logger.info(f"Email host: {settings.EMAIL_HOST}")
-                    logger.info(f"Email port: {settings.EMAIL_PORT}")
-                    logger.info(f"Email use TLS: {settings.EMAIL_USE_TLS}")
-                    logger.info(f"From email: {settings.DEFAULT_FROM_EMAIL}")
-                    
-                    # Test SMTP connection before sending
-                    logger.info("Testing SMTP connection...")
-                    if settings.EMAIL_USE_TLS:
-                        server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=15)
-                        server.starttls()
-                    else:
-                        server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=15)
-                    
-                    # Test authentication
-                    server.login(settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)
-                    server.quit()
-                    logger.info("SMTP connection test successful")
-                    
-                    # Create and send email
-                    email = EmailMultiAlternatives(
-                        mail_subject,
-                        text_content,
-                        settings.DEFAULT_FROM_EMAIL,
-                        [user.email],
-                        reply_to=[settings.DEFAULT_FROM_EMAIL]
+                if email_sent:
+                    # Create audit log
+                    create_audit_log(
+                        user,
+                        'user_registered',
+                        f"Registered new user: {user.email}"
                     )
-                    email.attach_alternative(html_content, "text/html")
-                    
-                    # Send with timeout
-                    email.connection = None  # Force new connection
-                    email.send(fail_silently=False)
-                    
-                    logger.info(f"Verification email sent successfully to {user.email}")
                     
                     response = Response({
-                        'message': 'Registration successful! Please check your MUBAS email to verify your account. You will be automatically logged in after verification.',
+                        'message': 'Registration successful! Please check your email to verify your account. You will be automatically logged in after verification.',
                         'user_id': user.id,
                         'email_sent': True
                     }, status=status.HTTP_201_CREATED)
-                    
-                except smtplib.SMTPAuthenticationError as e:
-                    logger.error(f"SMTP Authentication Failed: {str(e)}")
-                    if user:
-                        user.delete()
+                else:
+                    # Delete user if email failed
+                    user.delete()
                     response = Response({
-                        'error': 'Email service authentication failed. This is a server configuration issue. Please contact support.',
-                        'error_type': 'smtp_authentication'
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                    
-                except smtplib.SMTPConnectError as e:
-                    logger.error(f"SMTP Connection Error: {str(e)}")
-                    if user:
-                        user.delete()
-                    response = Response({
-                        'error': 'Cannot connect to email service. Please check your internet connection and try again later.',
-                        'error_type': 'smtp_connection'
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                    
-                except smtplib.SMTPServerDisconnected as e:
-                    logger.error(f"SMTP Server Disconnected: {str(e)}")
-                    if user:
-                        user.delete()
-                    response = Response({
-                        'error': 'Email server disconnected unexpectedly. Please try again.',
-                        'error_type': 'smtp_disconnected'
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                    
-                except smtplib.SMTPException as e:
-                    logger.error(f"SMTP Error: {str(e)}")
-                    if user:
-                        user.delete()
-                    response = Response({
-                        'error': 'Email delivery failed. Please check if your email address is valid and try again.',
-                        'error_type': 'smtp_general'
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                    
-                except TimeoutError as e:
-                    logger.error(f"Email sending timeout: {str(e)}")
-                    if user:
-                        user.delete()
-                    response = Response({
-                        'error': 'Email service timeout. Please try again in a few moments.',
-                        'error_type': 'timeout'
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                    
-                except Exception as e:
-                    logger.error(f"Unexpected email error: {str(e)}", exc_info=True)
-                    if user:
-                        user.delete()
-                    response = Response({
-                        'error': 'Failed to send verification email due to an unexpected error. Please try again or contact support.',
-                        'error_type': 'unexpected'
+                        'error': 'Failed to send verification email. Please check your email address and try again, or contact support if the problem persists.',
+                        'error_type': 'email_delivery'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                     
             else:
@@ -3051,7 +2873,6 @@ MUBAS SOMASE Team"""
         response['Access-Control-Allow-Origin'] = settings.FRONTEND_URL
         response['Access-Control-Allow-Credentials'] = 'true'
         return response
-
 @api_view(['DELETE'])
 @login_required
 def delete_user_account(request):
@@ -3062,100 +2883,3 @@ def delete_user_account(request):
     except Exception as e:
         return Response({'error': str(e)}, status=400)
  
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-@csrf_exempt
-def test_brevo_email(request):
-    """
-    Test Brevo email configuration directly
-    """
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    from django.conf import settings
-    
-    try:
-        # Test data
-        test_email = request.data.get('email', settings.DEFAULT_FROM_EMAIL)
-        
-        # Create message
-        message = MIMEMultipart("alternative")
-        message["Subject"] = "Brevo SMTP Test from Render"
-        message["From"] = settings.DEFAULT_FROM_EMAIL
-        message["To"] = test_email
-        
-        # Create HTML version
-        html = f"""
-        <html>
-          <body>
-            <h2>Brevo SMTP Test</h2>
-            <p>This is a test email sent from your Django app on Render.</p>
-            <p>If you receive this, your Brevo configuration is working correctly.</p>
-            <p>Time: {timezone.now()}</p>
-          </body>
-        </html>
-        """
-        
-        # Add HTML part
-        message.attach(MIMEText(html, "html"))
-        
-        # Try to send
-        if settings.EMAIL_USE_TLS:
-            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=30)
-            server.starttls()
-        else:
-            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=30)
-        
-        server.login(settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)
-        server.send_message(message)
-        server.quit()
-        
-        return Response({
-            'success': True,
-            'message': f'Test email sent successfully to {test_email}'
-        })
-        
-    except smtplib.SMTPAuthenticationError as e:
-        return Response({
-            'success': False,
-            'error': 'SMTP Authentication failed',
-            'details': str(e),
-            'config': {
-                'host': settings.EMAIL_HOST,
-                'port': settings.EMAIL_PORT,
-                'username': settings.EMAIL_HOST_USER,
-                'password_set': bool(settings.EMAIL_HOST_PASSWORD)
-            }
-        }, status=500)
-        
-    except smtplib.SMTPException as e:
-        return Response({
-            'success': False,
-            'error': 'SMTP Error',
-            'details': str(e)
-        }, status=500)
-        
-    except Exception as e:
-        return Response({
-            'success': False,
-            'error': 'Unexpected error',
-            'details': str(e)
-        }, status=500)
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def test_simple_email(request):
-    """Simple email test"""
-    from django.core.mail import send_mail
-    from django.conf import settings
-    
-    try:
-        send_mail(
-            'Test from Render + Brevo',
-            'If you receive this, your email configuration is working!',
-            settings.DEFAULT_FROM_EMAIL,
-            [settings.DEFAULT_FROM_EMAIL],  # Send to yourself
-            fail_silently=False,
-        )
-        return Response({'success': True, 'message': 'Test email sent'})
-    except Exception as e:
-        return Response({'success': False, 'error': str(e)})

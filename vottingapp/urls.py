@@ -38,11 +38,13 @@ urlpatterns = [
     path('api/candidate-application/<int:candidate_id>/', views.delete_candidate_application, name='delete-candidate-application'),
    # path('api/check-user-application/', views.check_user_application, name='check-user-application'),
    #path('api/test-email-config/', views.test_email_config, name='test_email_config'),
-   path('api/test-simple-config/', views.test_simple_email, name='test_config'),
-    path('api/test-email/', views.test_brevo_email, name='test_email'),
+   
+   #path('api/test-simple-config/', views.test_simple_email, name='test_config'),
+    #path('api/test-email/', views.test_brevo_email, name='test_email'),
    path('api/candidate-application/<int:candidate_id>/update/', views.update_candidate_application, name='update-candidate-application'),
    path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
    path('api/cancel-election/', views.cancel_election, name='cancel_election'),
     path('api/check-election-end/', views.check_election_end, name='check_election_end'),
     path('api/send-election-start-emails/', views.send_election_start_emails, name='send_election_start_emails'),
+    
 ]
