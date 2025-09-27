@@ -11,6 +11,8 @@ import json
 from django.contrib.auth import authenticate
 from django.utils import timezone
 import re
+import smtplib
+
 from django.shortcuts import redirect
 from django.core.mail import send_mail
 from django.conf import settings
@@ -2763,7 +2765,7 @@ def register_view(request):
                     }, status=status.HTTP_400_BAD_REQUEST)
             
             # Validate required fields
-            required_fields = ['username', 'email', 'password', 'first_name', 'last_name']
+            required_fields = ['username', 'email', 'password']
             for field in required_fields:
                 if field not in data or not data[field]:
                     return Response({
