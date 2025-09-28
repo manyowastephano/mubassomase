@@ -2795,12 +2795,7 @@ def register_view(request):
                 user.is_email_verified = True
                 user.save()
                 
-                # Create audit log
-                create_audit_log(
-                    user,
-                    'user_registered',
-                    f"Registered new user: {user.email}"
-                )
+               
                 
                 response = Response({
                     'message': 'Registration successful! You can now log in.',
@@ -2815,7 +2810,7 @@ def register_view(request):
                         error_messages.append(f"{field}: {error}")
                 
                 response = Response({
-                    'error': 'Please correct the following errors:',
+                    'error': 'Make sure you use your MUBAS email,,,, correct the errors in the form:',
                     'details': error_messages
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
