@@ -44,6 +44,9 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 
 
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 
 def get_frontend_url():
@@ -2735,13 +2738,11 @@ def activate_account(request, uidb64, token):
         """
         
         return HttpResponse(html_content, content_type='text/html')
-
 @api_view(['POST', 'OPTIONS'])
 @permission_classes([permissions.AllowAny])
 @csrf_exempt
 def register_view(request):
     from django.conf import settings
-    from .email_utils import send_verification_email
     
     if request.method == 'OPTIONS':
         response = Response()
@@ -2754,7 +2755,7 @@ def register_view(request):
     if request.method == 'POST':
         user = None
         try:
-            # For file uploads, use request.data directly
+            # For form data, use request.data directly
             if request.content_type.startswith('multipart/form-data'):
                 data = request.data
             else:
@@ -2788,57 +2789,23 @@ def register_view(request):
             serializer = UserRegistrationSerializer(data=data)
             
             if serializer.is_valid():
-                # Create user but set as inactive initially
+                # Create user and set as active immediately (no email verification)
                 user = serializer.save()
-                user.is_active = False
-                user.is_email_verified = False
-                
-                # Handle profile photo upload to Cloudinary
-                if 'profile_photo' in request.FILES:
-                    profile_photo = request.FILES['profile_photo']
-                    try:
-                        upload_result = cloudinary.uploader.upload(
-                            profile_photo,
-                            folder='voting_app/profiles/',
-                            resource_type='image',
-                            timeout=30
-                        )
-                        user.profile_photo = upload_result['secure_url']
-                        logger.info(f"Profile photo uploaded successfully: {upload_result['secure_url']}")
-                    except Exception as e:
-                        logger.error(f"Cloudinary upload error: {str(e)}", exc_info=True)
-                        user.profile_photo = None
-                
+                user.is_active = True
+                user.is_email_verified = True
                 user.save()
                 
-                # Generate verification token and URL
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                token = account_activation_token.make_token(user)
+                # Create audit log
+                create_audit_log(
+                    user,
+                    'user_registered',
+                    f"Registered new user: {user.email}"
+                )
                 
-                # Send email using Mailjet API
-                logger.info(f"Attempting to send verification email to {user.email}")
-                email_sent = send_verification_email(user.email, user.username, uid, token)
-                
-                if email_sent:
-                    # Create audit log
-                    create_audit_log(
-                        user,
-                        'user_registered',
-                        f"Registered new user: {user.email}"
-                    )
-                    
-                    response = Response({
-                        'message': 'Registration successful! Please check your email to verify your account. You will be automatically logged in after verification.',
-                        'user_id': user.id,
-                        'email_sent': True
-                    }, status=status.HTTP_201_CREATED)
-                else:
-                    # Delete user if email failed
-                    user.delete()
-                    response = Response({
-                        'error': 'Failed to send verification email. Please check your email address and try again, or contact support if the problem persists.',
-                        'error_type': 'email_delivery'
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                response = Response({
+                    'message': 'Registration successful! You can now log in.',
+                    'user_id': user.id,
+                }, status=status.HTTP_201_CREATED)
                     
             else:
                 # Return detailed validation errors
