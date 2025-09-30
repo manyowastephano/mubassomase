@@ -97,10 +97,20 @@ cloudinary.config(
     secure=True
 )
 
+CORS_ORIGIN_WHITELIST = [
+    "https://mubas-somase.onrender.com",
+    "https://mubassomase-1.onrender.com",
+]
 # Add this to determine the frontend URL dynamically
 FRONTEND_URL = f'https://{RENDER_EXTERNAL_HOSTNAME}' if RENDER_EXTERNAL_HOSTNAME else 'http://localhost:3000'
 
 # Security settings for production
+SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_DOMAIN = None  # Let browser handle domain
+CSRF_COOKIE_DOMAIN = None
+
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True

@@ -1,11 +1,9 @@
 
-# users/serializers.py
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import CustomUser, Candidate, Vote, Election,ElectionSettings,AuditLog
 from django.db.models import Q
 import re
-
 import cloudinary
 import cloudinary.uploader
 class AuditLogSerializer(serializers.ModelSerializer):
@@ -57,9 +55,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         password = attrs['password']
         if len(password) < 6:
             raise serializers.ValidationError({"password": "Password must be at least 6 characters long."})
-        
-        
-        
         return attrs
     
     def create(self, validated_data):
